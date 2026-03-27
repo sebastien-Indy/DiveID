@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Téléverser un rapport</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --deep: #061020;
+      --blue: #0d4f8c;
+      --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1);
+      --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8;
+      --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.75);
+      --green: #00e8a2;
+      --red: #e84f4f;
+      --amber: #e8b800;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--deep);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13,79,140,0.4) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 24px 48px;
+      border-bottom: 1px solid var(--cyan-border);
+    }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--white); text-decoration: none; }
+    .logo span { color: var(--cyan); }
+    .btn {
+      padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; text-decoration: none; transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-outline { border: 1px solid var(--cyan-border); background: transparent; color: var(--cyan); }
+    .btn-outline:hover { background: var(--cyan-dim); }
+    .btn-solid { border: none; background: var(--cyan); color: var(--deep); }
+    .btn-solid:hover { opacity: 0.85; }
+    .btn-green { border: none; background: var(--green); color: var(--deep); }
+    .btn-green:hover { opacity: 0.85; }
+    .btn-green:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* MAIN */
+    .main {
+      position: relative; z-index: 1;
+      max-width: 720px; margin: 0 auto;
+      padding: 40px 24px 80px;
+      display: flex; flex-direction: column; gap: 24px;
+    }
+
+    /* STEPS HEADER */
+    .steps {
+      display: flex; align-items: center; gap: 0; margin-bottom: 8px;
+    }
+    .step {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--muted);
+    }
+    .step.active { color: var(--white); }
+    .step.done { color: var(--green); }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: transparent; flex-shrink: 0;
+    }
+    .step.active .step-num { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-dim); }
+    .step.done .step-num { border-color: var(--green); color: var(--deep); background: var(--green); }
+    .step-divider { flex: 1; height: 1px; background: rgba(255,255,255,0.1); margin: 0 12px; }
+
+    /* PAGE TITLE */
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 2px; }
+    .page-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* CARD */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--cyan-border);
+      border-radius: 16px; padding: 28px; backdrop-filter: blur(12px);
+    }
+    .card-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px;
+      color: var(--cyan); margin-bottom: 20px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--cyan-border);
+    }
+
+    /* UPLOAD ZONE */
+    .upload-zone {
+      border: 2px dashed var(--cyan-border);
+      border-radius: 14px; padding: 48px 24px;
+      text-align: center; cursor: pointer;
+      transition: all 0.25s; position: relative;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--cyan);
+      background: var(--cyan-dim);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 48px; margin-bottom: 14px; display: block; }
+    .upload-title { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+    .upload-sub { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .upload-formats {
+      display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap;
+    }
+    .format-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 100px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted);
+    }
+
+    /* PREVIEW */
+    .preview-zone {
+      display: none;
+      border: 1px solid var(--cyan-border);
+      border-radius: 14px; overflow: hidden;
+    }
+    .preview-zone.visible { display: block; }
+    .preview-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      background: rgba(0,196,232,0.07);
+      border-bottom: 1px solid var(--cyan-border);
+    }
+    .preview-file { display: flex; align-items: center; gap: 10px; }
+    .preview-file-icon { font-size: 22px; }
+    .preview-file-name { font-size: 14px; font-weight: 500; }
+    .preview-file-size { font-size: 12px; color: var(--muted); }
+    .preview-change {
+      font-size: 12px; color: var(--cyan); cursor: pointer; background: none;
+      border: 1px solid var(--cyan-border); border-radius: 6px; padding: 5px 12px;
+      font-family: 'DM Sans', sans-serif; transition: background 0.2s;
+    }
+    .preview-change:hover { background: var(--cyan-dim); }
+    .preview-img {
+      width: 100%; max-height: 360px; object-fit: contain;
+      background: rgba(255,255,255,0.03); display: block;
+    }
+    .preview-pdf-placeholder {
+      padding: 40px; text-align: center; font-size: 14px; color: var(--muted);
+    }
+
+    /* INFOS CHANTIER */
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .field-input {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border);
+      border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--white);
+      font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%;
+    }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: var(--muted); }
+
+    /* ASSIGN PLONGEURS */
+    .plongeur-list { display: flex; flex-direction: column; gap: 10px; }
+    .plongeur-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+    .plongeur-row:hover { border-color: var(--cyan-border); background: var(--cyan-dim); }
+    .plongeur-row.selected {
+      border-color: var(--green);
+      background: rgba(0,232,162,0.07);
+    }
+    .plongeur-avatar {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 15px; color: var(--deep);
+    }
+    .plongeur-info { flex: 1; }
+    .plongeur-name { font-size: 14px; font-weight: 500; }
+    .plongeur-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .plongeur-check {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; flex-shrink: 0; transition: all 0.2s;
+    }
+    .plongeur-row.selected .plongeur-check {
+      background: var(--green); border-color: var(--green); color: var(--deep);
+    }
+
+    /* CONFIRM SUMMARY */
+    .summary { display: none; flex-direction: column; gap: 14px; }
+    .summary.visible { display: flex; }
+    .summary-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label { font-size: 13px; color: var(--muted); }
+    .summary-value { font-size: 14px; font-weight: 500; text-align: right; }
+    .assigned-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .assigned-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,232,162,0.1); border: 1px solid rgba(0,232,162,0.25);
+      border-radius: 100px; padding: 4px 12px 4px 6px; font-size: 12px; color: var(--green);
+    }
+    .assigned-chip-av {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--green); color: var(--deep);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 10px;
+    }
+
+    /* SUCCESS */
+    .success-screen {
+      display: none; text-align: center; padding: 48px 24px;
+    }
+    .success-screen.visible { display: block; }
+    .success-icon { font-size: 56px; margin-bottom: 16px; }
+    .success-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; color: var(--green); }
+    .success-sub { font-size: 15px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+    .success-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* ACTIONS */
+    .actions-row {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .fields-grid { grid-template-columns: 1fr; }
+      .main { padding: 24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="index.html">Dive<span>ID</span></a>
+  <a href="entreprise.html" class="btn btn-outline">← Tableau de bord</a>
+</nav>
+
+<div class="main">
+
+  <!-- Steps -->
+  <div class="steps" id="stepsBar">
+    <div class="step active" id="step1-indicator">
+      <div class="step-num">1</div> Téléverser
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step2-indicator">
+      <div class="step-num">2</div> Informations
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step3-indicator">
+      <div class="step-num">3</div> Assigner
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step4-indicator">
+      <div class="step-num">4</div> Confirmer
+    </div>
+  </div>
+
+  <!-- Titre -->
+  <div id="pageHeader">
+    <div class="page-title" id="pageTitle">Téléverser un rapport</div>
+    <div class="page-sub" id="pageSub">Scannez ou photographiez votre rapport papier et assignez-le aux plongeurs impliqués.</div>
+  </div>
+
+  <!-- ÉTAPE 1 : Upload -->
+  <div id="step1">
+    <div class="card">
+      <div class="card-title">📎 Document du rapport</div>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" accept="image/*,.pdf" id="fileInput" onchange="handleFile(this)" />
+        <span class="upload-icon">📄</span>
+        <div class="upload-title">Glissez votre scan ici</div>
+        <div class="upload-sub">Ou cliquez pour choisir un fichier depuis votre appareil.<br>Fonctionne aussi avec une photo prise sur iPhone.</div>
+        <div class="upload-formats">
+          <span class="format-badge">JPG</span>
+          <span class="format-badge">PNG</span>
+          <span class="format-badge">PDF</span>
+          <span class="format-badge">HEIC</span>
+        </div>
+      </div>
+
+      <div class="preview-zone" id="previewZone">
+        <div class="preview-header">
+          <div class="preview-file">
+            <span class="preview-file-icon" id="previewIcon">📄</span>
+            <div>
+              <div class="preview-file-name" id="previewName">rapport_14mars.jpg</div>
+              <div class="preview-file-size" id="previewSize">2.4 MB</div>
+            </div>
+          </div>
+          <button class="preview-change" onclick="resetFile()">Changer</button>
+        </div>
+        <img id="previewImg" class="preview-img" src="" alt="Aperçu du rapport" style="display:none" />
+        <div id="previewPdf" class="preview-pdf-placeholder" style="display:none">📋 Document PDF chargé — prêt à être assigné.</div>
+      </div>
+    </div>
+
+    <div class="actions-row" style="margin-top:16px;">
+      <span style="font-size:13px;color:var(--muted)">Étape 1 sur 4</span>
+      <button class="btn btn-solid" id="btnStep1" onclick="goStep(2)" disabled>Suivant →</button>
+    </div>
+  </div>
+
+  <!-- ÉTAPE 2 : Infos chantier -->
+  <div id="step2" style="display:none;">
+    <div class="card">
+      <div class="card-title">📋 Informations du chantier</div>
+      <div class="fields-grid">
+        <div class="field">
+          <label class="field-label" for="dateChantier">Date de la plongée</label>
+          <input class="field-input" type="date" id="dateChantier" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="nomChantier">Nom du chantier</label>
+          <input class="field-input" type="text" id="nomChantier" placeholder="ex. Inspection pipeline km42" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="lieuChantier">Lieu</label>
+          <input class="field-input" type="text" id="lieuChantier" placeholder="ex. Fleuve Saint-Laurent" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="typeWork">Type de travail</label>
+          <select class="field-input" id="typeWork">
+            <option value="">— Sélectionner —</option>
+            <option>Inspection visuelle</option>
+            <option>Soudage subaquatique</option>
+            <option>Réparation / entretien</option>
+            <option>Démolition</option>
+            <option>Installation</option>
+            <option>Relevé bathymétrique</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="actions-row" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="goStep(1)">← Retour</button>
+      <button class="btn btn-solid" onclick="goStep(3)">Suivant →</button>
+    </div>
+  </div>
+
+  <!-- ÉTAPE 3 : Assigner plongeurs -->
+  <div id="step3" style="display:none;">
+    <div class="card">
+      <div class="card-title">👤 Assigner aux plongeurs impliqués</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;">Sélectionnez tous les plongeurs qui ont participé à cette plongée. Ils recevront une notification et pourront consulter ce rapport dans leur logbook.</p>
+      <div class="plongeur-list">
+        <div class="plongeur-row" id="p1" onclick="togglePlongeur('p1')">
+          <div class="plongeur-avatar">SB</div>
+          <div class="plongeur-info">
+            <div class="plongeur-name">Sébastien Bissonnette</div>
+            <div class="plongeur-meta">DCBC Classe A · Accès accordé</div>
+          </div>
+          <div class="plongeur-check" id="check-p1"></div>
+        </div>
+        <div class="plongeur-row" id="p2" onclick="togglePlongeur('p2')">
+          <div class="plongeur-avatar">ML</div>
+          <div class="plongeur-info">
+            <div class="plongeur-name">Marc-André Lapointe</div>
+            <div class="plongeur-meta">DCBC Classe B · Accès accordé</div>
+          </div>
+          <div class="plongeur-check" id="check-p2"></div>
+        </div>
+        <div class="plongeur-row" id="p3" onclick="togglePlongeur('p3')">
+          <div class="plongeur-avatar">JT</div>
+          <div class="plongeur-info">
+            <div class="plongeur-name">Julie Tremblay</div>
+            <div class="plongeur-meta">DCBC Classe A · Accès accordé</div>
+          </div>
+          <div class="plongeur-check" id="check-p3"></div>
+        </div>
+        <div class="plongeur-row" id="p4" onclick="togglePlongeur('p4')">
+          <div class="plongeur-avatar">CR</div>
+          <div class="plongeur-info">
+            <div class="plongeur-name">Chloé Roy</div>
+            <div class="plongeur-meta">DCBC Classe B · Accès accordé</div>
+          </div>
+          <div class="plongeur-check" id="check-p4"></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions-row" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="goStep(2)">← Retour</button>
+      <button class="btn btn-solid" id="btnStep3" onclick="goStep(4)" disabled>Suivant →</button>
+    </div>
+  </div>
+
+  <!-- ÉTAPE 4 : Confirmation -->
+  <div id="step4" style="display:none;">
+    <div class="card">
+      <div class="card-title">✅ Confirmer et envoyer</div>
+      <div class="summary visible" id="summaryBlock">
+        <div class="summary-row">
+          <span class="summary-label">Document</span>
+          <span class="summary-value" id="sumFile">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Date</span>
+          <span class="summary-value" id="sumDate">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Chantier</span>
+          <span class="summary-value" id="sumChantier">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Lieu</span>
+          <span class="summary-value" id="sumLieu">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Type de travail</span>
+          <span class="summary-value" id="sumType">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Plongeurs assignés</span>
+          <div class="assigned-chips" id="sumPlongeurs"></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions-row" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="goStep(3)">← Retour</button>
+      <button class="btn btn-green" onclick="sendReport()">✓ Envoyer aux plongeurs</button>
+    </div>
+  </div>
+
+  <!-- SUCCÈS -->
+  <div class="success-screen card" id="successScreen">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">Rapport envoyé !</div>
+    <div class="success-sub" id="successMsg">Le rapport a été partagé avec les plongeurs sélectionnés.<br>Ils recevront une notification dans leur logbook.</div>
+    <div class="success-actions">
+      <a href="entreprise.html" class="btn btn-outline">← Tableau de bord</a>
+      <button class="btn btn-solid" onclick="resetAll()">+ Nouveau rapport</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const plongeurNames = { p1:'S. Bissonnette', p2:'M. Lapointe', p3:'J. Tremblay', p4:'C. Roy' };
+  const plongeurInits = { p1:'SB', p2:'ML', p3:'JT', p4:'CR' };
+  let selectedFile = null;
+  let selectedPlongeurs = new Set();
+
+  function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    selectedFile = file;
+    const zone = document.getElementById('uploadZone');
+    const preview = document.getElementById('previewZone');
+    zone.style.display = 'none';
+    preview.classList.add('visible');
+    document.getElementById('previewName').textContent = file.name;
+    document.getElementById('previewSize').textContent = (file.size / 1024 / 1024).toFixed(1) + ' MB';
+    if (file.type.startsWith('image/')) {
+      const img = document.getElementById('previewImg');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+      document.getElementById('previewPdf').style.display = 'none';
+      document.getElementById('previewIcon').textContent = '🖼';
+    } else {
+      document.getElementById('previewImg').style.display = 'none';
+      document.getElementById('previewPdf').style.display = 'block';
+      document.getElementById('previewIcon').textContent = '📋';
+    }
+    document.getElementById('btnStep1').disabled = false;
+  }
+
+  function resetFile() {
+    selectedFile = null;
+    document.getElementById('uploadZone').style.display = 'block';
+    document.getElementById('previewZone').classList.remove('visible');
+    document.getElementById('previewImg').src = '';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('btnStep1').disabled = true;
+  }
+
+  function togglePlongeur(id) {
+    const row = document.getElementById(id);
+    const check = document.getElementById('check-' + id);
+    if (selectedPlongeurs.has(id)) {
+      selectedPlongeurs.delete(id);
+      row.classList.remove('selected');
+      check.textContent = '';
+    } else {
+      selectedPlongeurs.add(id);
+      row.classList.add('selected');
+      check.textContent = '✓';
+    }
+    document.getElementById('btnStep3').disabled = selectedPlongeurs.size === 0;
+  }
+
+  function goStep(n) {
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById('step' + i).style.display = i === n ? 'flex' : 'none';
+      document.getElementById('step' + i).style.flexDirection = 'column';
+    }
+    // Update step indicators
+    ['step1-indicator','step2-indicator','step3-indicator','step4-indicator'].forEach((id, idx) => {
+      const el = document.getElementById(id);
+      el.className = 'step';
+      if (idx + 1 < n) el.classList.add('done'), el.querySelector('.step-num').textContent = '✓';
+      else if (idx + 1 === n) el.classList.add('active');
+      else el.querySelector('.step-num').textContent = idx + 1;
+    });
+
+    if (n === 4) buildSummary();
+
+    document.getElementById('step' + n).style.display = 'flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function buildSummary() {
+    document.getElementById('sumFile').textContent = selectedFile ? selectedFile.name : '—';
+    const d = document.getElementById('dateChantier').value;
+    document.getElementById('sumDate').textContent = d ? new Date(d + 'T00:00').toLocaleDateString('fr-CA', {day:'numeric',month:'long',year:'numeric'}) : '—';
+    document.getElementById('sumChantier').textContent = document.getElementById('nomChantier').value || '—';
+    document.getElementById('sumLieu').textContent = document.getElementById('lieuChantier').value || '—';
+    document.getElementById('sumType').textContent = document.getElementById('typeWork').value || '—';
+    const chips = document.getElementById('sumPlongeurs');
+    chips.innerHTML = '';
+    selectedPlongeurs.forEach(id => {
+      chips.innerHTML += `<div class="assigned-chip"><div class="assigned-chip-av">${plongeurInits[id]}</div>${plongeurNames[id]}</div>`;
+    });
+  }
+
+  function sendReport() {
+    document.getElementById('step4').style.display = 'none';
+    document.getElementById('stepsBar').style.display = 'none';
+    document.getElementById('pageHeader').style.display = 'none';
+    const names = [...selectedPlongeurs].map(id => plongeurNames[id]).join(', ');
+    document.getElementById('successMsg').textContent = `Le rapport a été partagé avec : ${names}. Ils recevront une notification dans leur logbook.`;
+    document.getElementById('successScreen').classList.add('visible');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetAll() {
+    selectedFile = null; selectedPlongeurs.clear();
+    document.getElementById('successScreen').classList.remove('visible');
+    document.getElementById('stepsBar').style.display = 'flex';
+    document.getElementById('pageHeader').style.display = 'block';
+    resetFile();
+    goStep(1);
+  }
+
+  // Drag and drop
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; handleFile(document.getElementById('fileInput')); }
+  });
+
+  // Init
+  goStep(1);
+</script>
+</body>
+</html>

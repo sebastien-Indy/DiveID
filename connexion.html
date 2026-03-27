@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Connexion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --deep: #061020;
+      --blue: #0d4f8c;
+      --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1);
+      --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8;
+      --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.85);
+      --green: #00e8a2;
+      --red: #e84f4f;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--deep);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 110%, rgba(13,79,140,0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 10% 20%, rgba(0,196,232,0.06) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Bubbles */
+    .bubbles { position: fixed; bottom: 0; left: 0; right: 0; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+    .bubble { position: absolute; bottom: -60px; border-radius: 50%; border: 1px solid rgba(0,196,232,0.2); animation: rise linear infinite; opacity: 0; }
+    .bubble:nth-child(1) { width:6px;  height:6px;  left:8%;  animation-duration:10s; animation-delay:0s;  }
+    .bubble:nth-child(2) { width:10px; height:10px; left:20%; animation-duration:14s; animation-delay:3s;  }
+    .bubble:nth-child(3) { width:5px;  height:5px;  left:40%; animation-duration:9s;  animation-delay:1s;  }
+    .bubble:nth-child(4) { width:8px;  height:8px;  left:60%; animation-duration:12s; animation-delay:5s;  }
+    .bubble:nth-child(5) { width:6px;  height:6px;  left:78%; animation-duration:11s; animation-delay:2s;  }
+    .bubble:nth-child(6) { width:9px;  height:9px;  left:90%; animation-duration:13s; animation-delay:7s;  }
+    @keyframes rise {
+      0%   { transform: translateY(0); opacity: 0; }
+      10%  { opacity: 0.5; }
+      90%  { opacity: 0.15; }
+      100% { transform: translateY(-110vh); opacity: 0; }
+    }
+
+    /* LAYOUT */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 480px;
+    }
+
+    /* LEFT PANEL */
+    .left-panel {
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: flex-start;
+      padding: 60px;
+      border-right: 1px solid var(--cyan-border);
+    }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 4px; color: var(--white); text-decoration: none; margin-bottom: 48px; display: block; }
+    .logo span { color: var(--cyan); }
+    .left-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(42px, 5vw, 72px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 24px; }
+    .left-title em { font-style: normal; color: var(--cyan); display: block; }
+    .left-sub { font-size: 15px; font-weight: 300; color: var(--muted); line-height: 1.7; max-width: 380px; margin-bottom: 48px; }
+
+    .features { display: flex; flex-direction: column; gap: 16px; }
+    .feature { display: flex; align-items: flex-start; gap: 14px; }
+    .feature-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--cyan-dim); border: 1px solid var(--cyan-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .feature-text { font-size: 14px; color: var(--muted); line-height: 1.5; padding-top: 8px; }
+    .feature-text strong { color: var(--white); font-weight: 500; display: block; margin-bottom: 2px; }
+
+    /* RIGHT PANEL */
+    .right-panel {
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 48px 40px;
+      background: rgba(6,16,32,0.6);
+    }
+
+    /* TABS */
+    .tabs {
+      display: flex; gap: 0;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--cyan-border);
+      border-radius: 12px; padding: 4px;
+      margin-bottom: 32px; width: 100%;
+    }
+    .tab {
+      flex: 1; padding: 10px; text-align: center;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      border-radius: 9px; border: none; background: transparent;
+      color: var(--muted); transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+    }
+    .tab.active { background: var(--cyan); color: var(--deep); }
+
+    /* FORM CARD */
+    .form-card {
+      background: var(--card-bg); border: 1px solid var(--cyan-border);
+      border-radius: 20px; padding: 36px; width: 100%;
+      backdrop-filter: blur(16px);
+    }
+
+    .form-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; margin-bottom: 6px; }
+    .form-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+    /* TYPE SELECTOR (inscription) */
+    .type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    .type-card {
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      padding: 16px 12px; text-align: center; cursor: pointer;
+      transition: all 0.2s; background: rgba(255,255,255,0.03);
+    }
+    .type-card:hover { border-color: var(--cyan-border); background: var(--cyan-dim); }
+    .type-card.selected { border-color: var(--cyan); background: var(--cyan-dim); }
+    .type-card-icon { font-size: 26px; margin-bottom: 6px; }
+    .type-card-label { font-size: 13px; font-weight: 500; }
+    .type-card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* FIELDS */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .field-input {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 12px 16px; font-size: 14px; color: var(--white);
+      font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%;
+    }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: rgba(240,244,248,0.25); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* PASSWORD TOGGLE */
+    .field-wrap { position: relative; }
+    .field-wrap .field-input { padding-right: 42px; }
+    .pw-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 16px; padding: 0; transition: color 0.2s;
+    }
+    .pw-toggle:hover { color: var(--white); }
+
+    /* ERROR */
+    .field-error { font-size: 12px; color: var(--red); margin-top: -10px; margin-bottom: 8px; display: none; }
+    .field-error.visible { display: block; }
+
+    /* SUBMIT BTN */
+    .btn-submit {
+      width: 100%; padding: 14px; border-radius: 10px; border: none;
+      background: var(--cyan); color: var(--deep);
+      font-size: 15px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: opacity 0.2s; margin-top: 8px;
+    }
+    .btn-submit:hover { opacity: 0.88; }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* DIVIDER */
+    .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+    .divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+    .divider-text { font-size: 12px; color: var(--muted); }
+
+    /* OAUTH */
+    .btn-oauth {
+      width: 100%; padding: 11px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+      color: var(--white); font-size: 14px; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-oauth:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+
+    /* FORGOT */
+    .forgot-link { font-size: 12px; color: var(--cyan); text-align: right; cursor: pointer; margin-top: -10px; margin-bottom: 16px; display: block; text-decoration: none; }
+    .forgot-link:hover { text-decoration: underline; }
+
+    /* TERMS */
+    .terms { font-size: 11px; color: var(--muted); text-align: center; margin-top: 16px; line-height: 1.6; }
+    .terms a { color: var(--cyan); text-decoration: none; }
+    .terms a:hover { text-decoration: underline; }
+
+    /* SUCCESS */
+    .success-msg {
+      display: none; text-align: center; padding: 20px 0;
+    }
+    .success-msg.visible { display: block; }
+    .success-msg-icon { font-size: 44px; margin-bottom: 12px; }
+    .success-msg-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--green); margin-bottom: 8px; }
+    .success-msg-sub { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      .page { grid-template-columns: 1fr; }
+      .left-panel { display: none; }
+      .right-panel { padding: 40px 24px; min-height: 100vh; }
+      .right-panel::before {
+        content: 'DiveID';
+        display: block; font-family: 'Bebas Neue', sans-serif;
+        font-size: 28px; letter-spacing: 4px; margin-bottom: 28px;
+        color: var(--white); text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bubbles">
+  <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+  <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+</div>
+
+<div class="page">
+
+  <!-- PANNEAU GAUCHE -->
+  <div class="left-panel">
+    <a class="logo" href="index.html">Dive<span>ID</span></a>
+    <div class="left-title">La plateforme des<br><em>scaphandriers.</em></div>
+    <p class="left-sub">Gérez vos certifications, accédez à vos rapports de chantier et connectez-vous aux entreprises de plongée commerciale au Québec.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🏅</div>
+        <div class="feature-text">
+          <strong>Certifications centralisées</strong>
+          Tous vos documents au même endroit, avec alertes d'expiration.
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📋</div>
+        <div class="feature-text">
+          <strong>Logbook numérique</strong>
+          Accédez aux rapports de chantier directement depuis votre profil.
+        </div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-text">
+          <strong>Vous contrôlez vos données</strong>
+          Vous choisissez qui peut voir vos documents. Révocable en tout temps.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANNEAU DROIT -->
+  <div class="right-panel">
+
+    <!-- TABS -->
+    <div class="tabs" style="max-width:400px;">
+      <button class="tab active" id="tabConnexion" onclick="switchTab('connexion')">Se connecter</button>
+      <button class="tab" id="tabInscription" onclick="switchTab('inscription')">Créer un compte</button>
+    </div>
+
+    <!-- FORMULAIRE CONNEXION -->
+    <div class="form-card" id="formConnexion" style="max-width:400px;">
+      <div class="form-title">Bon retour 👋</div>
+      <div class="form-sub">Connectez-vous à votre compte DiveID.</div>
+
+      <div class="field">
+        <label class="field-label">Courriel</label>
+        <input class="field-input" type="email" id="loginEmail" placeholder="votre@courriel.com" />
+      </div>
+      <div id="emailError" class="field-error">Veuillez entrer un courriel valide.</div>
+
+      <div class="field">
+        <label class="field-label">Mot de passe</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="loginPw" placeholder="••••••••" />
+          <button class="pw-toggle" onclick="togglePw('loginPw', this)" type="button">👁</button>
+        </div>
+      </div>
+      <div id="pwError" class="field-error">Mot de passe incorrect.</div>
+
+      <a href="#" class="forgot-link">Mot de passe oublié ?</a>
+
+      <button class="btn-submit" onclick="handleLogin()">Se connecter</button>
+
+      <div class="divider"><div class="divider-line"></div><span class="divider-text">ou</span><div class="divider-line"></div></div>
+
+      <button class="btn-oauth" onclick="alert('Connexion Google à venir dans la version finale.')">
+        <span>🔵</span> Continuer avec Google
+      </button>
+
+      <div class="terms" style="margin-top:20px;">
+        Pas encore de compte ? <a href="#" onclick="switchTab('inscription')">Créer un compte gratuitement</a>
+      </div>
+    </div>
+
+    <!-- FORMULAIRE INSCRIPTION -->
+    <div class="form-card" id="formInscription" style="display:none; max-width:400px;">
+
+      <!-- Étape 1 : type de compte -->
+      <div id="inscStep1">
+        <div class="form-title">Créer un compte</div>
+        <div class="form-sub">Quel type de compte voulez-vous créer ?</div>
+
+        <div class="type-selector">
+          <div class="type-card" id="typePlongeur" onclick="selectType('plongeur')">
+            <div class="type-card-icon">🤿</div>
+            <div class="type-card-label">Je suis plongeur</div>
+            <div class="type-card-sub">Scaphandrier commercial</div>
+          </div>
+          <div class="type-card" id="typeEntreprise" onclick="selectType('entreprise')">
+            <div class="type-card-icon">🏢</div>
+            <div class="type-card-label">Je suis une entreprise</div>
+            <div class="type-card-sub">Employeur / gestionnaire</div>
+          </div>
+        </div>
+
+        <button class="btn-submit" id="btnType" onclick="goInscStep(2)" disabled>Continuer →</button>
+        <div class="terms">Déjà un compte ? <a href="#" onclick="switchTab('connexion')">Se connecter</a></div>
+      </div>
+
+      <!-- Étape 2 : infos personnelles -->
+      <div id="inscStep2" style="display:none;">
+        <div class="form-title" id="inscTitle">Créer votre profil</div>
+        <div class="form-sub" id="inscSub">Informations personnelles</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Prénom</label>
+            <input class="field-input" type="text" id="regPrenom" placeholder="Jean" />
+          </div>
+          <div class="field">
+            <label class="field-label">Nom</label>
+            <input class="field-input" type="text" id="regNom" placeholder="Tremblay" />
+          </div>
+        </div>
+
+        <!-- Champ spécifique entreprise -->
+        <div class="field" id="companyField" style="display:none;">
+          <label class="field-label">Nom de l'entreprise</label>
+          <input class="field-input" type="text" id="regCompany" placeholder="Hydro-Tech Québec Inc." />
+        </div>
+
+        <div class="field">
+          <label class="field-label">Courriel</label>
+          <input class="field-input" type="email" id="regEmail" placeholder="votre@courriel.com" />
+        </div>
+
+        <div class="field">
+          <label class="field-label">Mot de passe</label>
+          <div class="field-wrap">
+            <input class="field-input" type="password" id="regPw" placeholder="Minimum 8 caractères" oninput="checkPwStrength(this.value)" />
+            <button class="pw-toggle" onclick="togglePw('regPw', this)" type="button">👁</button>
+          </div>
+        </div>
+
+        <!-- Force du mot de passe -->
+        <div style="margin-top:-10px; margin-bottom:16px;">
+          <div style="display:flex; gap:4px; margin-bottom:4px;">
+            <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.1)" id="bar1"></div>
+            <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.1)" id="bar2"></div>
+            <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.1)" id="bar3"></div>
+            <div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.1)" id="bar4"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted)" id="pwStrengthLabel"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Province / Région</label>
+          <select class="field-input" id="regProvince">
+            <option value="">— Sélectionner —</option>
+            <option>Québec</option>
+            <option>Ontario</option>
+            <option>Colombie-Britannique</option>
+            <option>Alberta</option>
+            <option>Nouvelle-Écosse</option>
+            <option>Autre</option>
+          </select>
+        </div>
+
+        <button class="btn-submit" onclick="handleRegister()">Créer mon compte →</button>
+
+        <div class="terms">
+          En créant un compte, vous acceptez nos <a href="#">conditions d'utilisation</a> et notre <a href="#">politique de confidentialité</a> (PIPEDA / Loi 25).
+        </div>
+      </div>
+
+      <!-- Succès inscription -->
+      <div class="success-msg" id="inscSuccess">
+        <div class="success-msg-icon">🎉</div>
+        <div class="success-msg-title">Compte créé !</div>
+        <div class="success-msg-sub" id="successText">Bienvenue sur DiveID. Votre profil est prêt.</div>
+        <button class="btn-submit" style="margin-top:24px;" id="btnRedirect">Aller à mon profil →</button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let selectedType = null;
+
+  function switchTab(tab) {
+    document.getElementById('formConnexion').style.display = tab === 'connexion' ? 'block' : 'none';
+    document.getElementById('formInscription').style.display = tab === 'inscription' ? 'block' : 'none';
+    document.getElementById('tabConnexion').className = 'tab' + (tab === 'connexion' ? ' active' : '');
+    document.getElementById('tabInscription').className = 'tab' + (tab === 'inscription' ? ' active' : '');
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('typePlongeur').className = 'type-card' + (type === 'plongeur' ? ' selected' : '');
+    document.getElementById('typeEntreprise').className = 'type-card' + (type === 'entreprise' ? ' selected' : '');
+    document.getElementById('btnType').disabled = false;
+  }
+
+  function goInscStep(n) {
+    document.getElementById('inscStep1').style.display = n === 1 ? 'block' : 'none';
+    document.getElementById('inscStep2').style.display = n === 2 ? 'block' : 'none';
+    if (n === 2) {
+      document.getElementById('companyField').style.display = selectedType === 'entreprise' ? 'block' : 'none';
+      document.getElementById('inscTitle').textContent = selectedType === 'entreprise' ? 'Créer votre compte entreprise' : 'Créer votre profil plongeur';
+      document.getElementById('inscSub').textContent = selectedType === 'entreprise' ? 'Informations de votre entreprise' : 'Informations personnelles';
+    }
+  }
+
+  function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+    else { input.type = 'password'; btn.textContent = '👁'; }
+  }
+
+  function checkPwStrength(pw) {
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const colors = ['', '#e84f4f','#e8b800','#00c4e8','#00e8a2'];
+    const labels = ['','Faible','Moyen','Bon','Fort'];
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById('bar' + i).style.background = i <= score ? colors[score] : 'rgba(255,255,255,0.1)';
+    }
+    document.getElementById('pwStrengthLabel').textContent = pw.length > 0 ? labels[score] : '';
+    document.getElementById('pwStrengthLabel').style.color = colors[score] || 'var(--muted)';
+  }
+
+  function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pw = document.getElementById('loginPw').value;
+    document.getElementById('emailError').classList.remove('visible');
+    document.getElementById('pwError').classList.remove('visible');
+    if (!email.includes('@')) { document.getElementById('emailError').classList.add('visible'); return; }
+    if (pw.length < 1) { document.getElementById('pwError').classList.add('visible'); return; }
+    // Simulation : redirection selon l'email
+    if (email.includes('entreprise') || email.includes('hydro')) {
+      window.location.href = 'entreprise.html';
+    } else {
+      window.location.href = 'plongeur.html';
+    }
+  }
+
+  function handleRegister() {
+    const prenom = document.getElementById('regPrenom').value;
+    const nom = document.getElementById('regNom').value;
+    const email = document.getElementById('regEmail').value;
+    const pw = document.getElementById('regPw').value;
+    if (!prenom || !nom || !email.includes('@') || pw.length < 8) {
+      alert('Veuillez remplir tous les champs correctement.');
+      return;
+    }
+    document.getElementById('inscStep2').style.display = 'none';
+    document.getElementById('inscSuccess').classList.add('visible');
+    document.getElementById('successText').textContent =
+      `Bienvenue ${prenom} ! Votre profil ${selectedType === 'entreprise' ? 'entreprise' : 'plongeur'} est prêt.`;
+    document.getElementById('btnRedirect').onclick = () => {
+      window.location.href = selectedType === 'entreprise' ? 'entreprise.html' : 'plongeur.html';
+    };
+  }
+</script>
+
+</body>
+</html>
