@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Connexion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --deep: #061020; --cyan: #00c4e8; --cyan-dim: rgba(0,196,232,0.15);
+      --cyan-border: rgba(0,196,232,0.2); --white: #f0f4f8;
+      --muted: rgba(240,244,248,0.45); --card-bg: rgba(13,22,40,0.85);
+      --green: #00e8a2; --red: #e84f4f;
+    }
+    html, body { height: 100%; background: var(--deep); color: var(--white); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(13,79,140,0.55) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+    .page { position: relative; z-index: 1; min-height: 100vh; display: grid; grid-template-columns: 1fr 480px; }
+    .left-panel { display: flex; flex-direction: column; justify-content: center; padding: 60px; border-right: 1px solid var(--cyan-border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 4px; color: var(--white); text-decoration: none; margin-bottom: 48px; display: block; }
+    .logo span { color: var(--cyan); }
+    .left-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(42px,5vw,72px); line-height: 0.95; letter-spacing: 2px; margin-bottom: 24px; }
+    .left-title em { font-style: normal; color: var(--cyan); display: block; }
+    .left-sub { font-size: 15px; font-weight: 300; color: var(--muted); line-height: 1.7; max-width: 380px; margin-bottom: 40px; }
+    .feature { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
+    .feature-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--cyan-dim); border: 1px solid var(--cyan-border); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .feature-text { font-size: 14px; color: var(--muted); padding-top: 8px; }
+    .feature-text strong { color: var(--white); font-weight: 500; display: block; margin-bottom: 2px; }
+
+    .right-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 48px 40px; background: rgba(6,16,32,0.6); }
+    .tabs { display: flex; background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border); border-radius: 12px; padding: 4px; margin-bottom: 28px; width: 100%; max-width: 400px; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 9px; border: none; background: transparent; color: var(--muted); transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .tab.active { background: var(--cyan); color: var(--deep); }
+
+    .form-card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 20px; padding: 36px; width: 100%; max-width: 400px; backdrop-filter: blur(16px); }
+    .form-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; margin-bottom: 6px; }
+    .form-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .field-wrap { position: relative; }
+    .field-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 16px; font-size: 14px; color: var(--white); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%; }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: rgba(240,244,248,0.25); }
+    .field-wrap .field-input { padding-right: 42px; }
+    .pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+    .type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .type-card { border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 10px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.03); }
+    .type-card:hover { border-color: var(--cyan-border); background: var(--cyan-dim); }
+    .type-card.selected { border-color: var(--cyan); background: var(--cyan-dim); }
+    .type-card-icon { font-size: 24px; margin-bottom: 5px; }
+    .type-card-label { font-size: 13px; font-weight: 500; }
+    .type-card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .btn-submit { width: 100%; padding: 14px; border-radius: 10px; border: none; background: var(--cyan); color: var(--deep); font-size: 15px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.2s; margin-top: 8px; }
+    .btn-submit:hover { opacity: 0.88; }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .alert { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .alert.error { background: rgba(232,79,79,0.12); border: 1px solid rgba(232,79,79,0.3); color: var(--red); display: block; }
+    .alert.success { background: rgba(0,232,162,0.1); border: 1px solid rgba(0,232,162,0.3); color: var(--green); display: block; }
+
+    .terms { font-size: 11px; color: var(--muted); text-align: center; margin-top: 16px; line-height: 1.6; }
+    .terms a { color: var(--cyan); cursor: pointer; }
+
+    @media (max-width: 860px) {
+      .page { grid-template-columns: 1fr; }
+      .left-panel { display: none; }
+      .right-panel { min-height: 100vh; padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="left-panel">
+    <a class="logo" href="index.html">Dive<span>ID</span></a>
+    <div class="left-title">La plateforme des<br><em>scaphandriers.</em></div>
+    <p class="left-sub">Gérez vos certifications, accédez à vos rapports et connectez-vous aux entreprises de plongée commerciale au Québec.</p>
+    <div class="feature"><div class="feature-icon">🏅</div><div class="feature-text"><strong>Certifications centralisées</strong>Tous vos documents au même endroit.</div></div>
+    <div class="feature"><div class="feature-icon">📋</div><div class="feature-text"><strong>Logbook numérique</strong>Accédez aux rapports de chantier.</div></div>
+    <div class="feature"><div class="feature-icon">🔒</div><div class="feature-text"><strong>Vos données vous appartiennent</strong>Conforme PIPEDA / Loi 25.</div></div>
+  </div>
+
+  <div class="right-panel">
+    <div class="tabs">
+      <button class="tab active" id="tabConn" onclick="switchTab('connexion')">Se connecter</button>
+      <button class="tab" id="tabInsc" onclick="switchTab('inscription')">Créer un compte</button>
+    </div>
+
+    <!-- CONNEXION -->
+    <div class="form-card" id="formConnexion">
+      <div class="form-title">Bon retour 👋</div>
+      <div class="form-sub">Connectez-vous à votre compte DiveID.</div>
+      <div class="alert" id="loginAlert"></div>
+      <div class="field">
+        <label class="field-label">Courriel</label>
+        <input class="field-input" type="email" id="loginEmail" placeholder="votre@courriel.com" />
+      </div>
+      <div class="field">
+        <label class="field-label">Mot de passe</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="loginPw" placeholder="••••••••" />
+          <button class="pw-toggle" onclick="togglePw('loginPw',this)" type="button">👁</button>
+        </div>
+      </div>
+      <button class="btn-submit" id="btnLogin" onclick="handleLogin()">Se connecter</button>
+      <div class="terms">Pas encore de compte ? <a onclick="switchTab('inscription')">Créer un compte</a></div>
+    </div>
+
+    <!-- INSCRIPTION -->
+    <div class="form-card" id="formInscription" style="display:none;">
+      <div class="form-title">Créer un compte</div>
+      <div class="form-sub">Rejoignez DiveID gratuitement.</div>
+      <div class="alert" id="signupAlert"></div>
+      <div class="type-selector">
+        <div class="type-card selected" id="typePlongeur" onclick="selectType('plongeur')">
+          <div class="type-card-icon">🤿</div>
+          <div class="type-card-label">Plongeur</div>
+          <div class="type-card-sub">Scaphandrier commercial</div>
+        </div>
+        <div class="type-card" id="typeEntreprise" onclick="selectType('entreprise')">
+          <div class="type-card-icon">🏢</div>
+          <div class="type-card-label">Entreprise</div>
+          <div class="type-card-sub">Employeur</div>
+        </div>
+      </div>
+      <div class="field"><label class="field-label">Prénom</label><input class="field-input" type="text" id="signupPrenom" placeholder="Jean" /></div>
+      <div class="field"><label class="field-label">Nom</label><input class="field-input" type="text" id="signupNom" placeholder="Tremblay" /></div>
+      <div class="field"><label class="field-label">Courriel</label><input class="field-input" type="email" id="signupEmail" placeholder="votre@courriel.com" /></div>
+      <div class="field">
+        <label class="field-label">Mot de passe</label>
+        <div class="field-wrap">
+          <input class="field-input" type="password" id="signupPw" placeholder="Minimum 6 caractères" />
+          <button class="pw-toggle" onclick="togglePw('signupPw',this)" type="button">👁</button>
+        </div>
+      </div>
+      <button class="btn-submit" id="btnSignup" onclick="handleSignup()">Créer mon compte →</button>
+      <div class="terms">Déjà un compte ? <a onclick="switchTab('connexion')">Se connecter</a></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://wslkcduuvcmonzftqxuy.supabase.co',
+    'sb_publishable_JlTuBLmGtMCMHe7A7aWSuQ_CJbeX_jL'
+  );
+
+  let selectedType = 'plongeur';
+
+  function switchTab(tab) {
+    document.getElementById('formConnexion').style.display = tab === 'connexion' ? 'block' : 'none';
+    document.getElementById('formInscription').style.display = tab === 'inscription' ? 'block' : 'none';
+    document.getElementById('tabConn').className = 'tab' + (tab === 'connexion' ? ' active' : '');
+    document.getElementById('tabInsc').className = 'tab' + (tab === 'inscription' ? ' active' : '');
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('typePlongeur').className = 'type-card' + (type === 'plongeur' ? ' selected' : '');
+    document.getElementById('typeEntreprise').className = 'type-card' + (type === 'entreprise' ? ' selected' : '');
+  }
+
+  function togglePw(id, btn) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+  }
+
+  function showAlert(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'alert ' + type;
+    if (type === 'error') setTimeout(() => el.className = 'alert', 5000);
+  }
+
+  async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pw = document.getElementById('loginPw').value;
+    if (!email || !pw) { showAlert('loginAlert', '⚠ Veuillez remplir tous les champs.', 'error'); return; }
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true; btn.textContent = 'Connexion...';
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
+    if (error) {
+      showAlert('loginAlert', '❌ Courriel ou mot de passe incorrect.', 'error');
+      btn.disabled = false; btn.textContent = 'Se connecter';
+    } else {
+      showAlert('loginAlert', '✓ Connexion réussie ! Redirection...', 'success');
+      const type = data.user.user_metadata?.type || 'plongeur';
+      setTimeout(() => { window.location.href = type === 'entreprise' ? 'zentreprise.html' : 'zplongeur.html'; }, 1000);
+    }
+  }
+
+  async function handleSignup() {
+    const prenom = document.getElementById('signupPrenom').value.trim();
+    const nom = document.getElementById('signupNom').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const pw = document.getElementById('signupPw').value;
+    if (!prenom || !nom || !email || !pw) { showAlert('signupAlert', '⚠ Veuillez remplir tous les champs.', 'error'); return; }
+    if (pw.length < 6) { showAlert('signupAlert', '⚠ Mot de passe trop court (minimum 6 caractères).', 'error'); return; }
+    const btn = document.getElementById('btnSignup');
+    btn.disabled = true; btn.textContent = 'Création...';
+    const { data, error } = await db.auth.signUp({
+      email, password: pw,
+      options: { data: { prenom, nom, type: selectedType } }
+    });
+    if (error) {
+      showAlert('signupAlert', '❌ ' + error.message, 'error');
+      btn.disabled = false; btn.textContent = 'Créer mon compte →';
+    } else {
+      showAlert('signupAlert', '🎉 Compte créé ! Redirection...', 'success');
+      setTimeout(() => { window.location.href = selectedType === 'entreprise' ? 'zentreprise.html' : 'zplongeur.html'; }, 1500);
+    }
+  }
+
+  // Déjà connecté ?
+  db.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      const type = data.session.user.user_metadata?.type || 'plongeur';
+      window.location.href = type === 'entreprise' ? 'zentreprise.html' : 'zplongeur.html';
+    }
+  });
+</script>
+</body>
+</html>
