@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Demandes d'accès</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --deep: #061020; --blue: #0d4f8c; --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1); --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8; --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.75); --green: #00e8a2; --red: #e84f4f; --amber: #e8b800;
+    }
+    html, body { min-height: 100%; background: var(--deep); color: var(--white); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13,79,140,0.4) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+    nav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid var(--cyan-border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--white); text-decoration: none; }
+    .logo span { color: var(--cyan); }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-outline { border: 1px solid var(--cyan-border) !important; background: transparent; color: var(--cyan); }
+    .btn-outline:hover { background: var(--cyan-dim); }
+    .btn-solid { background: var(--cyan); color: var(--deep); }
+    .btn-solid:hover { opacity: 0.85; }
+    .btn-red { background: rgba(232,79,79,0.15); color: var(--red); border: 1px solid rgba(232,79,79,0.3) !important; }
+
+    .main { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 40px 24px 80px; display: grid; grid-template-columns: 1fr 300px; gap: 28px; align-items: start; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 2px; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+    .view-toggle { display: flex; gap: 8px; margin-bottom: 24px; }
+    .view-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid var(--cyan-border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .view-btn.active { background: var(--cyan-dim); color: var(--white); border-color: var(--cyan); }
+
+    .filter-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-tab { padding: 6px 14px; border-radius: 100px; font-size: 13px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .filter-tab.active { border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan); }
+
+    .card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px; backdrop-filter: blur(12px); }
+    .card + .card { margin-top: 20px; }
+    .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--cyan); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--cyan-border); }
+
+    .request-list { display: flex; flex-direction: column; gap: 14px; }
+    .request-card { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); transition: border-color 0.2s; }
+    .request-card.en_attente { border-left: 3px solid var(--amber); }
+    .request-card.acceptee { border-left: 3px solid var(--green); }
+    .request-card.refusee { border-left: 3px solid var(--red); }
+    .rc-header { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: rgba(255,255,255,0.03); }
+    .rc-logo { width: 44px; height: 44px; border-radius: 10px; background: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .rc-info { flex: 1; }
+    .rc-company { font-size: 15px; font-weight: 500; }
+    .rc-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .rc-badge { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 100px; flex-shrink: 0; }
+    .rc-badge.en_attente { background: rgba(232,184,0,0.15); color: var(--amber); border: 1px solid rgba(232,184,0,0.3); }
+    .rc-badge.acceptee { background: rgba(0,232,162,0.12); color: var(--green); border: 1px solid rgba(0,232,162,0.3); }
+    .rc-badge.refusee { background: rgba(232,79,79,0.12); color: var(--red); border: 1px solid rgba(232,79,79,0.3); }
+    .rc-body { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .rc-message { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; font-style: italic; }
+    .rc-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .btn-accept { flex: 1; padding: 10px; border-radius: 8px; border: none; background: var(--green); color: var(--deep); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .btn-accept:hover { opacity: 0.85; }
+    .btn-decline { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(232,79,79,0.3); background: rgba(232,79,79,0.08); color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .btn-revoke { font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(232,79,79,0.3); background: transparent; color: var(--red); cursor: pointer; font-family: 'DM Sans', sans-serif; margin-left: auto; }
+    .status-note { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .status-note.ok { color: var(--green); }
+    .status-note.ko { color: var(--red); }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .field-input { background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--white); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%; }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: var(--muted); }
+    textarea.field-input { resize: vertical; min-height: 80px; }
+
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .info-box { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 14px; padding: 20px; }
+    .info-box-title { font-size: 13px; font-weight: 500; margin-bottom: 12px; }
+    .info-step { display: flex; gap: 10px; margin-bottom: 10px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .info-step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--cyan-dim); border: 1px solid var(--cyan-border); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--cyan); flex-shrink: 0; margin-top: 1px; }
+    .stat-mini-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .stat-mini-row:last-child { border-bottom: none; }
+    .stat-mini-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; }
+
+    .empty { text-align: center; padding: 32px; color: var(--muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 14px; }
+    .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 100; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; }
+    .toast.success { background: rgba(0,232,162,0.15); border: 1px solid rgba(0,232,162,0.4); color: var(--green); display: block; }
+    .toast.error { background: rgba(232,79,79,0.15); border: 1px solid rgba(232,79,79,0.4); color: var(--red); display: block; }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .main { grid-template-columns: 1fr; padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<nav>
+  <a class="logo" href="index.html">Dive<span>ID</span></a>
+  <div class="nav-right">
+    <span id="navUser" style="font-size:13px;color:var(--muted)"></span>
+    <button class="btn btn-red" onclick="deconnexion()">Déconnexion</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div>
+    <div class="page-title">Demandes d'accès</div>
+    <div class="page-sub" id="pageSub">Chargement...</div>
+
+    <div class="view-toggle">
+      <button class="view-btn active" id="btnVuePlongeur" onclick="setVue('plongeur')">🤿 Vue plongeur</button>
+      <button class="view-btn" id="btnVueEntreprise" onclick="setVue('entreprise')">🏢 Vue entreprise</button>
+    </div>
+
+    <!-- VUE PLONGEUR -->
+    <div id="vuePlongeur">
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filtrer('all', this)">Toutes</button>
+        <button class="filter-tab" onclick="filtrer('en_attente', this)">En attente</button>
+        <button class="filter-tab" onclick="filtrer('acceptee', this)">Acceptées</button>
+        <button class="filter-tab" onclick="filtrer('refusee', this)">Refusées</button>
+      </div>
+      <div id="demandesRecues"><div class="loading">⏳ Chargement...</div></div>
+    </div>
+
+    <!-- VUE ENTREPRISE -->
+    <div id="vueEntreprise" style="display:none;">
+      <div class="card">
+        <div class="card-title">📨 Envoyer une demande d'accès</div>
+        <div class="field">
+          <label class="field-label">Nom du plongeur *</label>
+          <input class="field-input" type="text" id="nomPlongeur" placeholder="Prénom Nom du plongeur" />
+        </div>
+        <div class="field">
+          <label class="field-label">Message (optionnel)</label>
+          <textarea class="field-input" id="messageAcces" placeholder="Décrivez votre projet, la durée, le type de travail..."></textarea>
+        </div>
+        <button class="btn btn-solid" onclick="envoyerDemande()" style="width:100%;padding:12px;font-size:14px;border-radius:10px;">
+          Envoyer la demande →
+        </button>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title">📋 Demandes envoyées</div>
+        <div id="demandesEnvoyees"><div class="loading">⏳ Chargement...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="info-box">
+      <div class="info-box-title">🔒 Comment ça fonctionne</div>
+      <div class="info-step"><div class="info-step-num">1</div>L'entreprise envoie une demande au plongeur.</div>
+      <div class="info-step"><div class="info-step-num">2</div>Le plongeur accepte ou refuse la demande.</div>
+      <div class="info-step"><div class="info-step-num">3</div>L'accès peut être révoqué en tout temps.</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-title">📊 Résumé</div>
+      <div class="stat-mini-row"><span style="color:var(--muted)">En attente</span><span class="stat-mini-val" id="countAttente" style="color:var(--amber)">0</span></div>
+      <div class="stat-mini-row"><span style="color:var(--muted)">Acceptées</span><span class="stat-mini-val" id="countAcceptee" style="color:var(--green)">0</span></div>
+      <div class="stat-mini-row"><span style="color:var(--muted)">Refusées</span><span class="stat-mini-val" id="countRefusee" style="color:var(--red)">0</span></div>
+    </div>
+    <div class="info-box" style="background:rgba(0,232,162,0.06);border-color:rgba(0,232,162,0.2);">
+      <div style="display:flex;gap:10px;">
+        <span style="font-size:18px;">🛡</span>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;"><strong style="color:var(--green)">Vos données vous appartiennent.</strong><br>Conforme à la Loi 25 et au PIPEDA.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient('https://wslkcduuvcmonzftqxuy.supabase.co', 'sb_publishable_JlTuBLmGtMCMHe7A7aWSuQ_CJbeX_jL');
+  let currentUser = null;
+  let toutesDemandesRecues = [];
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  function labelStatut(s) {
+    if (s === 'en_attente') return '⏳ En attente';
+    if (s === 'acceptee') return '✓ Acceptée';
+    return '✕ Refusée';
+  }
+
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { window.location.href = 'zconnexion.html'; return; }
+    currentUser = session.user;
+    const { data: entreprise } = await db.from('entreprises').select('nom_entreprise').eq('user_id', currentUser.id).single();
+    const { data: profil } = await db.from('profils').select('prenom, nom').eq('user_id', currentUser.id).single();
+    if (entreprise) {
+      document.getElementById('navUser').textContent = '🏢 ' + entreprise.nom_entreprise;
+      document.getElementById('pageSub').textContent = 'Gérez vos demandes d\'accès aux plongeurs.';
+      setVue('entreprise');
+    } else {
+      const nom = profil ? (profil.prenom + ' ' + profil.nom) : currentUser.email;
+      document.getElementById('navUser').textContent = '🤿 ' + nom;
+      document.getElementById('pageSub').textContent = 'Des entreprises souhaitent consulter vos documents.';
+      setVue('plongeur');
+    }
+  }
+
+  function setVue(vue) {
+    document.getElementById('vuePlongeur').style.display = vue === 'plongeur' ? 'block' : 'none';
+    document.getElementById('vueEntreprise').style.display = vue === 'entreprise' ? 'block' : 'none';
+    document.getElementById('btnVuePlongeur').className = 'view-btn' + (vue === 'plongeur' ? ' active' : '');
+    document.getElementById('btnVueEntreprise').className = 'view-btn' + (vue === 'entreprise' ? ' active' : '');
+    if (vue === 'plongeur') chargerDemandesRecues();
+    if (vue === 'entreprise') chargerDemandesEnvoyees();
+  }
+
+  async function chargerDemandesRecues() {
+    const { data } = await db.from('demandes_acces').select('*').eq('plongeur_id', currentUser.id).order('created_at', { ascending: false });
+    toutesDemandesRecues = data || [];
+    afficherDemandesRecues(toutesDemandesRecues);
+    mettreAJourCompteurs(toutesDemandesRecues);
+  }
+
+  function afficherDemandesRecues(demandes) {
+    const container = document.getElementById('demandesRecues');
+    if (!demandes || demandes.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Aucune demande reçue pour l\'instant.</div></div>';
+      return;
+    }
+    container.innerHTML = '<div class="request-list">' + demandes.map(d => {
+      const date = new Date(d.created_at).toLocaleDateString('fr-CA', { day:'numeric', month:'long', year:'numeric' });
+      const actionsHTML = d.statut === 'en_attente'
+        ? `<button class="btn-accept" onclick="repondre('${d.id}','acceptee')">✓ Accepter</button><button class="btn-decline" onclick="repondre('${d.id}','refusee')">✕ Refuser</button>`
+        : d.statut === 'acceptee'
+          ? `<span class="status-note ok">✓ Accès accordé le ${date}</span><button class="btn-revoke" onclick="repondre('${d.id}','refusee')">Révoquer</button>`
+          : `<span class="status-note ko">✕ Accès refusé le ${date}</span>`;
+      return `<div class="request-card ${d.statut}">
+        <div class="rc-header">
+          <div class="rc-logo">🏢</div>
+          <div class="rc-info"><div class="rc-company">${d.nom_entreprise || 'Entreprise'}</div><div class="rc-meta">Reçue le ${date}</div></div>
+          <span class="rc-badge ${d.statut}">${labelStatut(d.statut)}</span>
+        </div>
+        <div class="rc-body">${d.message ? `<div class="rc-message">"${d.message}"</div>` : ''}<div class="rc-actions">${actionsHTML}</div></div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  async function repondre(id, statut) {
+    const { error } = await db.from('demandes_acces').update({ statut }).eq('id', id);
+    if (error) { showToast('❌ ' + error.message, 'error'); return; }
+    showToast(statut === 'acceptee' ? '✓ Accès accordé !' : '✓ Accès refusé.', 'success');
+    chargerDemandesRecues();
+  }
+
+  function filtrer(statut, btn) {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const filtre = statut === 'all' ? toutesDemandesRecues : toutesDemandesRecues.filter(d => d.statut === statut);
+    afficherDemandesRecues(filtre);
+  }
+
+  async function chargerDemandesEnvoyees() {
+    const { data } = await db.from('demandes_acces').select('*').eq('entreprise_id', currentUser.id).order('created_at', { ascending: false });
+    const container = document.getElementById('demandesEnvoyees');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Aucune demande envoyée pour l\'instant.</div></div>';
+      return;
+    }
+    container.innerHTML = '<div class="request-list">' + data.map(d => {
+      const date = new Date(d.created_at).toLocaleDateString('fr-CA', { day:'numeric', month:'long', year:'numeric' });
+      return `<div class="request-card ${d.statut}">
+        <div class="rc-header">
+          <div class="rc-logo">🤿</div>
+          <div class="rc-info"><div class="rc-company">Plongeur</div><div class="rc-meta">Envoyée le ${date}</div></div>
+          <span class="rc-badge ${d.statut}">${labelStatut(d.statut)}</span>
+        </div>
+        ${d.message ? `<div class="rc-body"><div class="rc-message">"${d.message}"</div></div>` : ''}
+      </div>`;
+    }).join('') + '</div>';
+    mettreAJourCompteurs(data);
+  }
+
+  async function envoyerDemande() {
+    const nomRecherche = document.getElementById('nomPlongeur').value.trim();
+    const message = document.getElementById('messageAcces').value.trim();
+    if (!nomRecherche) { showToast('⚠ Veuillez entrer le nom du plongeur.', 'error'); return; }
+
+    // Chercher le plongeur par nom
+    const { data: plongeurs } = await db.from('profils').select('*').eq('type', 'plongeur');
+    const plongeur = plongeurs?.find(p => {
+      const fullName = ((p.prenom || '') + ' ' + (p.nom || '')).toLowerCase();
+      return fullName.includes(nomRecherche.toLowerCase());
+    });
+
+    if (!plongeur) { showToast('⚠ Plongeur introuvable. Vérifiez le nom.', 'error'); return; }
+
+    const { data: entreprise } = await db.from('entreprises').select('nom_entreprise').eq('user_id', currentUser.id).single();
+
+    const { error } = await db.from('demandes_acces').insert([{
+      entreprise_id: currentUser.id,
+      plongeur_id: plongeur.user_id,
+      nom_entreprise: entreprise?.nom_entreprise || 'Mon entreprise',
+      message: message || null,
+      statut: 'en_attente'
+    }]);
+
+    if (error) {
+      showToast('❌ ' + error.message, 'error');
+    } else {
+      showToast('✓ Demande envoyée à ' + plongeur.prenom + ' ' + plongeur.nom + ' !', 'success');
+      document.getElementById('nomPlongeur').value = '';
+      document.getElementById('messageAcces').value = '';
+      chargerDemandesEnvoyees();
+    }
+  }
+
+  function mettreAJourCompteurs(demandes) {
+    document.getElementById('countAttente').textContent = demandes.filter(d => d.statut === 'en_attente').length;
+    document.getElementById('countAcceptee').textContent = demandes.filter(d => d.statut === 'acceptee').length;
+    document.getElementById('countRefusee').textContent = demandes.filter(d => d.statut === 'refusee').length;
+  }
+
+  async function deconnexion() {
+    await db.auth.signOut();
+    window.location.href = 'zconnexion.html';
+  }
+
+  init();
+</script>
+</body>
+</html>
