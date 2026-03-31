@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Profil du plongeur</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --deep: #061020; --blue: #0d4f8c; --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1); --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8; --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.75); --green: #00e8a2; --red: #e84f4f; --amber: #e8b800;
+    }
+    html, body { min-height: 100%; background: var(--deep); color: var(--white); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13,79,140,0.4) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+    nav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid var(--cyan-border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--white); text-decoration: none; }
+    .logo span { color: var(--cyan); }
+    .btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-outline { border: 1px solid var(--cyan-border) !important; background: transparent; color: var(--cyan); }
+    .btn-outline:hover { background: var(--cyan-dim); }
+    .btn-red { background: rgba(232,79,79,0.15); color: var(--red); border: 1px solid rgba(232,79,79,0.3) !important; }
+
+    .main { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; padding: 40px 24px 80px; display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: start; }
+
+    /* SIDEBAR */
+    .profile-card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px 24px; text-align: center; backdrop-filter: blur(12px); }
+    .avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--cyan)); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--deep); margin: 0 auto 16px; border: 3px solid var(--cyan-border); }
+    .profile-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
+    .profile-province { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+    .avail-badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 100px; padding: 7px 18px; font-size: 13px; font-weight: 500; margin-bottom: 20px; }
+    .avail-badge.oui { background: rgba(0,232,162,0.1); border: 1px solid rgba(0,232,162,0.3); color: var(--green); }
+    .avail-badge.non { background: rgba(232,79,79,0.1); border: 1px solid rgba(232,79,79,0.3); color: var(--red); }
+    .avail-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .pstat { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 12px; text-align: center; }
+    .pstat-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--cyan); }
+    .pstat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .access-info { background: rgba(0,232,162,0.07); border: 1px solid rgba(0,232,162,0.25); border-radius: 12px; padding: 14px; text-align: left; }
+    .access-info-title { font-size: 12px; font-weight: 500; color: var(--green); margin-bottom: 4px; }
+    .access-info-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    .no-access { background: rgba(232,79,79,0.07); border: 1px solid rgba(232,79,79,0.25); border-radius: 12px; padding: 14px; text-align: center; }
+    .no-access-icon { font-size: 28px; margin-bottom: 8px; }
+    .no-access-text { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+    .btn-demander { width: 100%; padding: 10px; border-radius: 8px; border: none; background: var(--cyan); color: var(--deep); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+    /* CONTENT */
+    .content { display: flex; flex-direction: column; gap: 20px; }
+    .card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px; backdrop-filter: blur(12px); }
+    .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--cyan); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--cyan-border); display: flex; align-items: center; justify-content: space-between; }
+
+    /* CERTIFICATIONS */
+    .cert-list { display: flex; flex-direction: column; gap: 12px; }
+    .cert-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); transition: border-color 0.2s; }
+    .cert-item:hover { border-color: var(--cyan-border); }
+    .cert-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .cert-icon.valide { background: rgba(0,232,162,0.12); }
+    .cert-icon.bientot { background: rgba(232,184,0,0.12); }
+    .cert-icon.expire { background: rgba(232,79,79,0.12); }
+    .cert-info { flex: 1; }
+    .cert-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .cert-meta { font-size: 12px; color: var(--muted); }
+    .cert-badge { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 100px; flex-shrink: 0; }
+    .cert-badge.valide { background: rgba(0,232,162,0.15); color: var(--green); border: 1px solid rgba(0,232,162,0.3); }
+    .cert-badge.bientot { background: rgba(232,184,0,0.15); color: var(--amber); border: 1px solid rgba(232,184,0,0.3); }
+    .cert-badge.expire { background: rgba(232,79,79,0.15); color: var(--red); border: 1px solid rgba(232,79,79,0.3); }
+    .btn-view { font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--cyan-border); background: transparent; color: var(--cyan); cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: all 0.2s; flex-shrink: 0; }
+    .btn-view:hover { background: var(--cyan-dim); }
+
+    /* LOCKED */
+    .locked-overlay { text-align: center; padding: 40px 24px; }
+    .locked-icon { font-size: 44px; margin-bottom: 14px; }
+    .locked-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin-bottom: 8px; color: var(--amber); }
+    .locked-text { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .btn-demander-acces { padding: 12px 28px; border-radius: 10px; border: none; background: var(--cyan); color: var(--deep); font-size: 14px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
+    .btn-demander-acces:hover { opacity: 0.85; }
+
+    .empty { text-align: center; padding: 32px; color: var(--muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 100; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; }
+    .toast.success { background: rgba(0,232,162,0.15); border: 1px solid rgba(0,232,162,0.4); color: var(--green); display: block; }
+    .toast.error { background: rgba(232,79,79,0.15); border: 1px solid rgba(232,79,79,0.4); color: var(--red); display: block; }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .main { grid-template-columns: 1fr; padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<nav>
+  <a class="logo" href="index.html">Dive<span>ID</span></a>
+  <div style="display:flex;gap:10px;">
+    <a href="zentreprise.html" class="btn btn-outline">← Tableau de bord</a>
+    <button class="btn btn-red" onclick="deconnexion()">Déconnexion</button>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- SIDEBAR PROFIL -->
+  <div>
+    <div class="profile-card">
+      <div class="avatar" id="avatarInitiales">??</div>
+      <div class="profile-name" id="profileNom">Chargement...</div>
+      <div class="profile-province" id="profileProvince">—</div>
+      <div class="avail-badge oui" id="availBadge">
+        <div class="avail-dot"></div>
+        <span id="availText">Disponible</span>
+      </div>
+      <div class="profile-stats">
+        <div class="pstat"><div class="pstat-num" id="nbCertifs">—</div><div class="pstat-label">Certifs</div></div>
+        <div class="pstat"><div class="pstat-num" id="nbValides">—</div><div class="pstat-label">Valides</div></div>
+      </div>
+      <div id="accessStatus"></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <div class="card">
+      <div class="card-title">
+        🏅 Certifications
+        <span id="certCount" style="font-size:13px;font-weight:400;color:var(--muted);font-family:'DM Sans',sans-serif;"></span>
+      </div>
+      <div id="certContainer"><div class="loading">⏳ Vérification de l'accès...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient('https://wslkcduuvcmonzftqxuy.supabase.co', 'sb_publishable_JlTuBLmGtMCMHe7A7aWSuQ_CJbeX_jL');
+  let currentUser = null;
+  let plongeurId = null;
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  function getInitiales(prenom, nom) {
+    return ((prenom?.[0] || '') + (nom?.[0] || '')).toUpperCase() || '??';
+  }
+
+  function calculerStatut(dateExp) {
+    if (!dateExp) return 'valide';
+    const diff = (new Date(dateExp) - new Date()) / (1000 * 60 * 60 * 24);
+    if (diff < 0) return 'expire';
+    if (diff < 90) return 'bientot';
+    return 'valide';
+  }
+
+  function labelStatut(s) {
+    if (s === 'expire') return '✕ Expirée';
+    if (s === 'bientot') return '⚠ Bientôt';
+    return '✓ Valide';
+  }
+
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { window.location.href = 'zconnexion.html'; return; }
+    currentUser = session.user;
+
+    // Récupérer l'ID du plongeur depuis l'URL
+    const params = new URLSearchParams(window.location.search);
+    plongeurId = params.get('id');
+
+    if (!plongeurId) {
+      // Si pas d'ID dans l'URL, chercher le premier plongeur disponible
+      const { data: plongeurs } = await db.from('profils').select('*').eq('type', 'plongeur').limit(1);
+      if (plongeurs && plongeurs.length > 0) {
+        plongeurId = plongeurs[0].user_id;
+      } else {
+        document.getElementById('certContainer').innerHTML = '<div class="empty"><div class="empty-icon">🤿</div><div class="empty-text">Aucun plongeur trouvé.</div></div>';
+        return;
+      }
+    }
+
+    // Charger le profil du plongeur
+    const { data: profil } = await db.from('profils').select('*').eq('user_id', plongeurId).single();
+    if (profil) {
+      document.getElementById('avatarInitiales').textContent = getInitiales(profil.prenom, profil.nom);
+      document.getElementById('profileNom').textContent = (profil.prenom || '') + ' ' + (profil.nom || '');
+      document.getElementById('profileProvince').textContent = profil.province || '—';
+      const dispo = profil.disponible !== false;
+      const badge = document.getElementById('availBadge');
+      badge.className = 'avail-badge ' + (dispo ? 'oui' : 'non');
+      document.getElementById('availText').textContent = dispo ? 'Disponible' : 'Non disponible';
+    }
+
+    // Vérifier si l'entreprise a un accès accepté
+    const { data: demande } = await db.from('demandes_acces')
+      .select('*')
+      .eq('entreprise_id', currentUser.id)
+      .eq('plongeur_id', plongeurId)
+      .eq('statut', 'acceptee')
+      .single();
+
+    if (demande) {
+      // Accès accordé — montrer les certifications
+      document.getElementById('accessStatus').innerHTML = `
+        <div class="access-info">
+          <div class="access-info-title">✓ Accès accordé</div>
+          <div class="access-info-sub">Accès aux certifications autorisé par le plongeur.</div>
+        </div>`;
+      chargerCertifications();
+    } else {
+      // Pas d'accès — vérifier si demande en attente
+      const { data: enAttente } = await db.from('demandes_acces')
+        .select('*')
+        .eq('entreprise_id', currentUser.id)
+        .eq('plongeur_id', plongeurId)
+        .single();
+
+      document.getElementById('accessStatus').innerHTML = `
+        <div class="no-access">
+          <div class="no-access-icon">🔒</div>
+          <div class="no-access-text">${enAttente ? 'Demande d\'accès en attente de réponse.' : 'Vous n\'avez pas accès aux certifications de ce plongeur.'}</div>
+          ${!enAttente ? `<button class="btn-demander" onclick="envoyerDemande()">Demander l'accès</button>` : ''}
+        </div>`;
+
+      document.getElementById('certContainer').innerHTML = `
+        <div class="locked-overlay">
+          <div class="locked-icon">🔒</div>
+          <div class="locked-title">${enAttente ? 'Demande en attente' : 'Accès requis'}</div>
+          <div class="locked-text">${enAttente
+            ? 'Votre demande d\'accès est en attente de réponse du plongeur.'
+            : 'Pour voir les certifications de ce plongeur, vous devez d\'abord obtenir son autorisation.'
+          }</div>
+          ${!enAttente ? `<button class="btn-demander-acces" onclick="envoyerDemande()">Demander l'accès aux certifications</button>` : ''}
+        </div>`;
+    }
+  }
+
+  async function chargerCertifications() {
+    const { data } = await db.from('certifications')
+      .select('*')
+      .eq('plongeur_id', plongeurId)
+      .order('date_expiration', { ascending: true });
+
+    const container = document.getElementById('certContainer');
+    const count = document.getElementById('certCount');
+
+    if (!data || data.length === 0) {
+      document.getElementById('nbCertifs').textContent = '0';
+      document.getElementById('nbValides').textContent = '0';
+      count.textContent = '0 certification';
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Ce plongeur n\'a pas encore ajouté de certifications.</div></div>';
+      return;
+    }
+
+    const valides = data.filter(c => (c.statut || calculerStatut(c.date_expiration)) === 'valide').length;
+    document.getElementById('nbCertifs').textContent = data.length;
+    document.getElementById('nbValides').textContent = valides;
+    count.textContent = data.length + ' certification' + (data.length > 1 ? 's' : '');
+
+    const icons = { valide: '🏅', bientot: '⚠️', expire: '🚨' };
+    container.innerHTML = '<div class="cert-list">' + data.map(cert => {
+      const statut = cert.statut || calculerStatut(cert.date_expiration);
+      const dateExp = cert.date_expiration ? new Date(cert.date_expiration).toLocaleDateString('fr-CA', { day:'numeric', month:'long', year:'numeric' }) : '—';
+      const dateEm = cert.date_emission ? new Date(cert.date_emission).toLocaleDateString('fr-CA', { day:'numeric', month:'long', year:'numeric' }) : '—';
+      return `
+        <div class="cert-item">
+          <div class="cert-icon ${statut}">${icons[statut] || '🏅'}</div>
+          <div class="cert-info">
+            <div class="cert-name">${cert.nom}</div>
+            <div class="cert-meta">Émis le ${dateEm} · Expire le ${dateExp}</div>
+          </div>
+          <span class="cert-badge ${statut}">${labelStatut(statut)}</span>
+          ${cert.fichier_url ? `<a class="btn-view" href="${cert.fichier_url}" target="_blank">📄 Voir</a>` : ''}
+        </div>`;
+    }).join('') + '</div>';
+  }
+
+  async function envoyerDemande() {
+    const { data: entreprise } = await db.from('entreprises').select('nom_entreprise').eq('user_id', currentUser.id).single();
+    const { error } = await db.from('demandes_acces').insert([{
+      entreprise_id: currentUser.id,
+      plongeur_id: plongeurId,
+      nom_entreprise: entreprise?.nom_entreprise || 'Mon entreprise',
+      statut: 'en_attente'
+    }]);
+    if (error) { showToast('❌ ' + error.message, 'error'); return; }
+    showToast('✓ Demande envoyée au plongeur !', 'success');
+    setTimeout(() => init(), 1500);
+  }
+
+  async function deconnexion() {
+    await db.auth.signOut();
+    window.location.href = 'zconnexion.html';
+  }
+
+  init();
+</script>
+</body>
+</html>
