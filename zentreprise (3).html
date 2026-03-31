@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Tableau de bord entreprise</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --deep: #061020; --blue: #0d4f8c; --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1); --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8; --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.75); --green: #00e8a2; --red: #e84f4f; --amber: #e8b800;
+    }
+    html, body { min-height: 100%; background: var(--deep); color: var(--white); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13,79,140,0.4) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+    nav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid var(--cyan-border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--white); text-decoration: none; }
+    .logo span { color: var(--cyan); }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .company-badge { display: flex; align-items: center; gap: 8px; background: var(--cyan-dim); border: 1px solid var(--cyan-border); border-radius: 100px; padding: 5px 14px; font-size: 12px; color: var(--cyan); }
+    .btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-outline { border: 1px solid var(--cyan-border) !important; background: transparent; color: var(--cyan); }
+    .btn-outline:hover { background: var(--cyan-dim); }
+    .btn-solid { background: var(--cyan); color: var(--deep); }
+    .btn-solid:hover { opacity: 0.85; }
+    .btn-red { background: rgba(232,79,79,0.15); color: var(--red); border: 1px solid rgba(232,79,79,0.3) !important; }
+    .btn-red:hover { background: rgba(232,79,79,0.25); }
+
+    .main { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 36px 24px 80px; display: flex; flex-direction: column; gap: 28px; }
+
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 2px; }
+    .page-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    .setup-card { background: rgba(0,196,232,0.06); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px; }
+    .setup-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--cyan); margin-bottom: 6px; }
+    .setup-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .field-input { background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--white); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%; }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: var(--muted); }
+
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat-card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 14px; padding: 22px 24px; }
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+    .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 38px; color: var(--cyan); line-height: 1; margin-bottom: 6px; }
+    .stat-sub { font-size: 12px; color: var(--muted); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
+    .section-card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px; backdrop-filter: blur(12px); }
+    .section-card + .section-card { margin-top: 20px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; }
+
+    .search-bar { margin-bottom: 20px; }
+    .search-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border); border-radius: 10px; padding: 10px 16px; font-size: 14px; color: var(--white); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; }
+    .search-input:focus { border-color: var(--cyan); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .plongeur-list { display: flex; flex-direction: column; gap: 10px; }
+    .plongeur-row { display: grid; grid-template-columns: 44px 1fr auto auto; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); transition: border-color 0.2s; }
+    .plongeur-row:hover { border-color: var(--cyan-border); }
+    .plongeur-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--cyan)); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--deep); }
+    .plongeur-name { font-size: 14px; font-weight: 500; }
+    .plongeur-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .avail-badge { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 100px; flex-shrink: 0; }
+    .avail-badge.oui { background: rgba(0,232,162,0.12); color: var(--green); }
+    .avail-badge.non { background: rgba(232,79,79,0.12); color: var(--red); }
+    .btn-contact { font-size: 12px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--cyan-border); background: transparent; color: var(--cyan); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .btn-contact:hover { background: var(--cyan-dim); }
+
+    .notif-list { display: flex; flex-direction: column; gap: 10px; }
+    .notif-item { display: flex; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+    .notif-item.unread { border-color: var(--cyan-border); background: rgba(0,196,232,0.04); }
+    .notif-icon { font-size: 20px; flex-shrink: 0; }
+    .notif-text { font-size: 13px; line-height: 1.5; }
+    .notif-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .empty { text-align: center; padding: 32px; color: var(--muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 14px; }
+    .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 100; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; }
+    .toast.success { background: rgba(0,232,162,0.15); border: 1px solid rgba(0,232,162,0.4); color: var(--green); display: block; }
+    .toast.error { background: rgba(232,79,79,0.15); border: 1px solid rgba(232,79,79,0.4); color: var(--red); display: block; }
+
+    @media (max-width: 900px) {
+      nav { padding: 16px 20px; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      .fields-grid { grid-template-columns: 1fr; }
+      .main { padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<nav>
+  <a class="logo" href="index.html">Dive<span>ID</span></a>
+  <div class="nav-right">
+    <div class="company-badge" id="companyBadge">🏢 Chargement...</div>
+    <button class="btn btn-outline" onclick="toggleSetup()">⚙️ Mon entreprise</button>
+    <button class="btn btn-red" onclick="deconnexion()">Déconnexion</button>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- SETUP ENTREPRISE -->
+  <div id="setupCard" style="display:none;">
+    <div class="setup-card">
+      <div class="setup-title">⚙️ Profil de votre entreprise</div>
+      <div class="setup-sub">Complétez ces informations pour apparaître dans l'annuaire et contacter des plongeurs.</div>
+      <div class="fields-grid">
+        <div class="field">
+          <label class="field-label">Nom de l'entreprise *</label>
+          <input class="field-input" type="text" id="inputNomEntreprise" placeholder="Hydro-Tech Québec Inc." />
+        </div>
+        <div class="field">
+          <label class="field-label">Province</label>
+          <select class="field-input" id="inputProvinceEntreprise">
+            <option value="">— Sélectionner —</option>
+            <option value="Québec">Québec</option>
+            <option value="Ontario">Ontario</option>
+            <option value="Colombie-Britannique">Colombie-Britannique</option>
+            <option value="Alberta">Alberta</option>
+            <option value="Nouvelle-Écosse">Nouvelle-Écosse</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Téléphone</label>
+          <input class="field-input" type="tel" id="inputTel" placeholder="514-555-0123" />
+        </div>
+      </div>
+      <button class="btn btn-solid" onclick="sauvegarderEntreprise()" style="padding:11px 24px;font-size:14px;border-radius:10px;">
+        💾 Sauvegarder
+      </button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">Tableau de bord</div>
+      <div class="page-sub" id="pageSubDate">Bienvenue sur DiveID</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <a href="rapport-upload.html" class="btn btn-outline">📋 Nouveau rapport</a>
+      <button class="btn btn-solid" onclick="document.getElementById('annuaireSection').scrollIntoView({behavior:'smooth'})">🤿 Trouver un plongeur</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Plongeurs disponibles</div>
+      <div class="stat-value" id="statDispo">—</div>
+      <div class="stat-sub">Prêts à travailler</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total plongeurs</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">Inscrits sur DiveID</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Votre province</div>
+      <div class="stat-value" id="statProvince" style="font-size:20px;padding-top:10px;">—</div>
+      <div class="stat-sub">Région configurée</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Statut</div>
+      <div class="stat-value" style="font-size:20px;padding-top:10px;color:var(--green)">✓ Actif</div>
+      <div class="stat-sub">Compte entreprise</div>
+    </div>
+  </div>
+
+  <!-- ANNUAIRE + NOTIFS -->
+  <div class="two-col" id="annuaireSection">
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">Annuaire des plongeurs</div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="text" placeholder="Rechercher par nom ou province..." oninput="filtrerPlongeurs(this.value)" />
+      </div>
+      <div id="plongeurList"><div class="loading">⏳ Chargement des plongeurs...</div></div>
+    </div>
+
+    <div>
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">Activité récente</div>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="loading">⏳ Chargement...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://wslkcduuvcmonzftqxuy.supabase.co',
+    'sb_publishable_JlTuBLmGtMCMHe7A7aWSuQ_CJbeX_jL'
+  );
+
+  let currentUser = null;
+  let tousPlongeurs = [];
+  let setupVisible = false;
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  function getInitiales(prenom, nom) {
+    return ((prenom?.[0] || '') + (nom?.[0] || '')).toUpperCase() || '??';
+  }
+
+  function toggleSetup() {
+    setupVisible = !setupVisible;
+    document.getElementById('setupCard').style.display = setupVisible ? 'block' : 'none';
+    if (setupVisible) document.getElementById('setupCard').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function chargerDashboard() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { window.location.href = 'zconnexion.html'; return; }
+    currentUser = session.user;
+
+    const date = new Date().toLocaleDateString('fr-CA', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    document.getElementById('pageSubDate').textContent = 'Bienvenue · ' + date;
+
+    // Charger profil entreprise
+    const { data: entreprise } = await db.from('entreprises').select('*').eq('user_id', currentUser.id).single();
+
+    if (!entreprise) {
+      // Première connexion — afficher setup automatiquement
+      document.getElementById('setupCard').style.display = 'block';
+      setupVisible = true;
+      document.getElementById('companyBadge').textContent = '🏢 Mon entreprise';
+    } else {
+      document.getElementById('companyBadge').textContent = '🏢 ' + entreprise.nom_entreprise;
+      document.getElementById('statProvince').textContent = entreprise.province || '—';
+      document.getElementById('inputNomEntreprise').value = entreprise.nom_entreprise || '';
+      document.getElementById('inputProvinceEntreprise').value = entreprise.province || '';
+      document.getElementById('inputTel').value = entreprise.telephone || '';
+    }
+
+    await chargerPlongeurs();
+    afficherNotifications(entreprise);
+  }
+
+  async function chargerPlongeurs() {
+    const { data } = await db.from('profils').select('*').eq('type', 'plongeur');
+    const container = document.getElementById('plongeurList');
+
+    if (!data || data.length === 0) {
+      document.getElementById('statTotal').textContent = '0';
+      document.getElementById('statDispo').textContent = '0';
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🤿</div><div class="empty-text">Aucun plongeur inscrit pour l\'instant.<br>Partagez DiveID à vos plongeurs !</div></div>';
+      return;
+    }
+
+    tousPlongeurs = data;
+    const disponibles = data.filter(p => p.disponible !== false).length;
+    document.getElementById('statTotal').textContent = data.length;
+    document.getElementById('statDispo').textContent = disponibles;
+    afficherPlongeurs(data);
+  }
+
+  function afficherPlongeurs(plongeurs) {
+    const container = document.getElementById('plongeurList');
+    if (plongeurs.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Aucun résultat trouvé.</div></div>';
+      return;
+    }
+    container.innerHTML = '<div class="plongeur-list">' + plongeurs.map(p => {
+      const initiales = getInitiales(p.prenom, p.nom);
+      const dispo = p.disponible !== false;
+      return `
+        <div class="plongeur-row">
+          <div class="plongeur-avatar">${initiales}</div>
+          <div>
+            <div class="plongeur-name">${p.prenom || ''} ${p.nom || ''}</div>
+            <div class="plongeur-meta">${p.province || 'Province non spécifiée'}</div>
+          </div>
+          <span class="avail-badge ${dispo ? 'oui' : 'non'}">${dispo ? 'Disponible' : 'Non disponible'}</span>
+          <button class="btn-contact" onclick="window.location.href='profil-plongeur.html?id='+encodeURIComponent('${p.user_id}')">Voir profil</button>
+        </div>`;
+    }).join('') + '</div>';
+  }
+
+  function filtrerPlongeurs(val) {
+    const q = val.toLowerCase();
+    const filtre = tousPlongeurs.filter(p =>
+      ((p.prenom || '') + ' ' + (p.nom || '')).toLowerCase().includes(q) ||
+      (p.province || '').toLowerCase().includes(q)
+    );
+    afficherPlongeurs(filtre);
+  }
+
+  function contacterPlongeur(nom) {
+    showToast('✓ Demande envoyée à ' + nom + ' !', 'success');
+    const list = document.getElementById('notifList');
+    const div = document.createElement('div');
+    div.className = 'notif-item unread';
+    div.innerHTML = `<div class="notif-icon">📨</div><div><div class="notif-text">Demande envoyée à <strong>${nom}</strong></div><div class="notif-time">À l'instant</div></div>`;
+    list.insertBefore(div, list.firstChild);
+  }
+
+  function afficherNotifications(entreprise) {
+    const notifs = [
+      { icon: entreprise ? '✅' : '⚠️', texte: entreprise ? 'Profil entreprise configuré' : 'Configurez votre profil entreprise', temps: 'Aujourd\'hui', unread: !entreprise },
+      { icon: '🔔', texte: 'Bienvenue sur DiveID !', temps: 'À la connexion', unread: false },
+    ];
+    document.getElementById('notifList').innerHTML = notifs.map(n => `
+      <div class="notif-item ${n.unread ? 'unread' : ''}">
+        <div class="notif-icon">${n.icon}</div>
+        <div><div class="notif-text">${n.texte}</div><div class="notif-time">${n.temps}</div></div>
+      </div>`).join('');
+  }
+
+  async function sauvegarderEntreprise() {
+    const nom = document.getElementById('inputNomEntreprise').value.trim();
+    const province = document.getElementById('inputProvinceEntreprise').value;
+    const telephone = document.getElementById('inputTel').value.trim();
+    if (!nom) { showToast('⚠ Veuillez entrer le nom de votre entreprise.', 'error'); return; }
+
+    const { error } = await db.from('entreprises').upsert({
+      user_id: currentUser.id, nom_entreprise: nom, province, telephone
+    }, { onConflict: 'user_id' });
+
+    if (error) {
+      showToast('❌ Erreur : ' + error.message, 'error');
+    } else {
+      document.getElementById('companyBadge').textContent = '🏢 ' + nom;
+      document.getElementById('statProvince').textContent = province || '—';
+      document.getElementById('setupCard').style.display = 'none';
+      setupVisible = false;
+      showToast('✓ Profil entreprise sauvegardé !', 'success');
+    }
+  }
+
+  async function deconnexion() {
+    await db.auth.signOut();
+    window.location.href = 'zconnexion.html';
+  }
+
+  chargerDashboard();
+</script>
+</body>
+</html>
