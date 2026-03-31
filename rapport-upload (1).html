@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DiveID — Rapports de plongée</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --deep: #061020; --blue: #0d4f8c; --cyan: #00c4e8;
+      --cyan-dim: rgba(0,196,232,0.1); --cyan-border: rgba(0,196,232,0.2);
+      --white: #f0f4f8; --muted: rgba(240,244,248,0.45);
+      --card-bg: rgba(13,22,40,0.75); --green: #00e8a2; --red: #e84f4f; --amber: #e8b800;
+    }
+    html, body { min-height: 100%; background: var(--deep); color: var(--white); font-family: 'DM Sans', sans-serif; }
+    body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(13,79,140,0.4) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+
+    nav { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 24px 48px; border-bottom: 1px solid var(--cyan-border); }
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; color: var(--white); text-decoration: none; }
+    .logo span { color: var(--cyan); }
+    .btn { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; font-family: 'DM Sans', sans-serif; border: none; }
+    .btn-outline { border: 1px solid var(--cyan-border) !important; background: transparent; color: var(--cyan); }
+    .btn-outline:hover { background: var(--cyan-dim); }
+    .btn-red { background: rgba(232,79,79,0.15); color: var(--red); border: 1px solid rgba(232,79,79,0.3) !important; }
+
+    .main { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 24px; }
+    .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 2px; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: var(--muted); }
+
+    .view-toggle { display: flex; gap: 8px; }
+    .view-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid var(--cyan-border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+    .view-btn.active { background: var(--cyan-dim); color: var(--white); border-color: var(--cyan); }
+
+    .card { background: var(--card-bg); border: 1px solid var(--cyan-border); border-radius: 16px; padding: 28px; backdrop-filter: blur(12px); }
+    .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--cyan); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--cyan-border); }
+
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .field-input { background: rgba(255,255,255,0.05); border: 1px solid var(--cyan-border); border-radius: 8px; padding: 10px 14px; font-size: 14px; color: var(--white); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; width: 100%; }
+    .field-input:focus { border-color: var(--cyan); }
+    .field-input::placeholder { color: var(--muted); }
+    select.field-input { cursor: pointer; }
+
+    /* PLONGEURS SELECTOR */
+    .plongeur-selector { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .plongeur-option { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); cursor: pointer; transition: all 0.2s; }
+    .plongeur-option:hover { border-color: var(--cyan-border); background: var(--cyan-dim); }
+    .plongeur-option.selected { border-color: var(--green); background: rgba(0,232,162,0.07); }
+    .plongeur-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--cyan)); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: var(--deep); flex-shrink: 0; }
+    .plongeur-name { font-size: 14px; font-weight: 500; flex: 1; }
+    .plongeur-check { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.2s; flex-shrink: 0; }
+    .plongeur-option.selected .plongeur-check { background: var(--green); border-color: var(--green); color: var(--deep); }
+
+    /* UPLOAD */
+    .upload-section { margin-bottom: 20px; }
+    .upload-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px; display: block; }
+    .upload-btn-wrap { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--cyan-border); }
+    .upload-btn { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--cyan-border); background: var(--cyan-dim); color: var(--cyan); font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+    .upload-btn:hover { background: rgba(0,196,232,0.2); }
+    .upload-file-name { font-size: 13px; color: var(--muted); flex: 1; }
+    .upload-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 16px; }
+
+    .progress-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); margin-bottom: 16px; overflow: hidden; display: none; }
+    .progress-bar.visible { display: block; }
+    .progress-fill { height: 100%; background: var(--cyan); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+
+    .btn-submit { width: 100%; padding: 13px; border-radius: 10px; border: none; background: var(--green); color: var(--deep); font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.2s; }
+    .btn-submit:hover { opacity: 0.85; }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* LISTE RAPPORTS */
+    .rapport-list { display: flex; flex-direction: column; gap: 12px; }
+    .rapport-item { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); transition: border-color 0.2s; }
+    .rapport-item:hover { border-color: var(--cyan-border); }
+    .rapport-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--cyan-dim); border: 1px solid var(--cyan-border); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .rapport-info { flex: 1; }
+    .rapport-name { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+    .rapport-meta { font-size: 12px; color: var(--muted); }
+    .rapport-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-view { font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--cyan-border); background: transparent; color: var(--cyan); cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: all 0.2s; }
+    .btn-view:hover { background: var(--cyan-dim); }
+    .btn-delete { font-size: 12px; padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(232,79,79,0.3); background: transparent; color: var(--red); cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+    .empty { text-align: center; padding: 32px; color: var(--muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 14px; }
+    .loading { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 100; padding: 12px 20px; border-radius: 10px; font-size: 14px; display: none; }
+    .toast.success { background: rgba(0,232,162,0.15); border: 1px solid rgba(0,232,162,0.4); color: var(--green); display: block; }
+    .toast.error { background: rgba(232,79,79,0.15); border: 1px solid rgba(232,79,79,0.4); color: var(--red); display: block; }
+
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .fields-grid { grid-template-columns: 1fr; }
+      .main { padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<input type="file" accept="image/*,.pdf" id="fileInput" onchange="handleFile(this)" style="display:none;" />
+
+<nav>
+  <a class="logo" href="index.html">Dive<span>ID</span></a>
+  <div style="display:flex;gap:10px;">
+    <a href="zentreprise.html" class="btn btn-outline">← Tableau de bord</a>
+    <button class="btn btn-red" onclick="deconnexion()">Déconnexion</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div>
+    <div class="page-title">Rapports de plongée</div>
+    <div class="page-sub" id="pageSub">Téléversez et assignez vos rapports de chantier.</div>
+  </div>
+
+  <div class="view-toggle">
+    <button class="view-btn active" id="btnEnvoyer" onclick="setVue('envoyer')">📤 Envoyer un rapport</button>
+    <button class="view-btn" id="btnMesRapports" onclick="setVue('rapports')">📋 Mes rapports</button>
+  </div>
+
+  <!-- VUE ENVOI -->
+  <div id="vueEnvoyer">
+    <div class="card">
+      <div class="card-title">📸 Téléverser un rapport de chantier</div>
+
+      <div class="fields-grid">
+        <div class="field">
+          <label class="field-label">Nom du chantier *</label>
+          <input class="field-input" type="text" id="nomChantier" placeholder="ex. Inspection pipeline km42" />
+        </div>
+        <div class="field">
+          <label class="field-label">Date de la plongée</label>
+          <input class="field-input" type="date" id="datePlongee" />
+        </div>
+        <div class="field">
+          <label class="field-label">Lieu</label>
+          <input class="field-input" type="text" id="lieuChantier" placeholder="ex. Fleuve Saint-Laurent" />
+        </div>
+        <div class="field">
+          <label class="field-label">Type de travail</label>
+          <select class="field-input" id="typeTravail">
+            <option value="">— Sélectionner —</option>
+            <option>Inspection visuelle</option>
+            <option>Soudage subaquatique</option>
+            <option>Réparation / entretien</option>
+            <option>Démolition</option>
+            <option>Installation</option>
+            <option>Relevé bathymétrique</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- UPLOAD -->
+      <div class="upload-section">
+        <span class="upload-label">Document du rapport (scan ou photo)</span>
+        <div class="upload-btn-wrap">
+          <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            📁 Choisir un fichier
+          </button>
+          <span class="upload-file-name" id="uploadFileName">Aucun fichier sélectionné</span>
+          <button class="upload-remove" id="uploadRemove" onclick="removeFile()" style="display:none;">✕</button>
+        </div>
+      </div>
+
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <!-- ASSIGNER PLONGEURS -->
+      <div class="field" style="margin-bottom:20px;">
+        <label class="field-label">Assigner aux plongeurs impliqués</label>
+        <div class="plongeur-selector" id="plongeurSelector">
+          <div class="loading">⏳ Chargement des plongeurs...</div>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="btnEnvoyerRapport" onclick="envoyerRapport()">
+        ✓ Envoyer le rapport aux plongeurs
+      </button>
+    </div>
+  </div>
+
+  <!-- VUE RAPPORTS -->
+  <div id="vueRapports" style="display:none;">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div class="card-title" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">📋 Rapports envoyés</div>
+        <span id="rapportCount" style="font-size:13px;color:var(--muted);">Chargement...</span>
+      </div>
+      <div id="rapportList"><div class="loading">⏳ Chargement...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://wslkcduuvcmonzftqxuy.supabase.co',
+    'sb_publishable_JlTuBLmGtMCMHe7A7aWSuQ_CJbeX_jL'
+  );
+
+  let currentUser = null;
+  let selectedFile = null;
+  let selectedPlongeurs = new Set();
+  let tousPlongeurs = [];
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  function getInitiales(prenom, nom) {
+    return ((prenom?.[0] || '') + (nom?.[0] || '')).toUpperCase() || '??';
+  }
+
+  function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    selectedFile = file;
+    document.getElementById('uploadFileName').textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+    document.getElementById('uploadFileName').style.color = 'var(--white)';
+    document.getElementById('uploadRemove').style.display = 'block';
+  }
+
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadFileName').textContent = 'Aucun fichier sélectionné';
+    document.getElementById('uploadFileName').style.color = '';
+    document.getElementById('uploadRemove').style.display = 'none';
+  }
+
+  function setVue(vue) {
+    document.getElementById('vueEnvoyer').style.display = vue === 'envoyer' ? 'block' : 'none';
+    document.getElementById('vueRapports').style.display = vue === 'rapports' ? 'block' : 'none';
+    document.getElementById('btnEnvoyer').className = 'view-btn' + (vue === 'envoyer' ? ' active' : '');
+    document.getElementById('btnMesRapports').className = 'view-btn' + (vue === 'rapports' ? ' active' : '');
+    if (vue === 'rapports') chargerRapports();
+  }
+
+  function togglePlongeur(id) {
+    const el = document.getElementById('p-' + id);
+    const check = document.getElementById('check-' + id);
+    if (selectedPlongeurs.has(id)) {
+      selectedPlongeurs.delete(id);
+      el.classList.remove('selected');
+      check.textContent = '';
+    } else {
+      selectedPlongeurs.add(id);
+      el.classList.add('selected');
+      check.textContent = '✓';
+    }
+  }
+
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { window.location.href = 'zconnexion.html'; return; }
+    currentUser = session.user;
+
+    // Vérifier que c'est bien une entreprise
+    const { data: entreprise } = await db.from('entreprises').select('nom_entreprise').eq('user_id', currentUser.id).single();
+    if (!entreprise) {
+      document.getElementById('pageSub').textContent = 'Consultez les rapports qui vous ont été assignés.';
+      document.getElementById('btnEnvoyer').style.display = 'none';
+      setVue('rapports');
+    }
+
+    // Charger les plongeurs
+    const { data: plongeurs } = await db.from('profils').select('*').eq('type', 'plongeur');
+    tousPlongeurs = plongeurs || [];
+
+    const selector = document.getElementById('plongeurSelector');
+    if (!plongeurs || plongeurs.length === 0) {
+      selector.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:12px;">Aucun plongeur inscrit pour l\'instant.</div>';
+    } else {
+      selector.innerHTML = plongeurs.map(p => `
+        <div class="plongeur-option" id="p-${p.user_id}" onclick="togglePlongeur('${p.user_id}')">
+          <div class="plongeur-avatar">${getInitiales(p.prenom, p.nom)}</div>
+          <span class="plongeur-name">${p.prenom || ''} ${p.nom || ''} <span style="font-size:11px;color:var(--muted);">· ${p.province || ''}</span></span>
+          <div class="plongeur-check" id="check-${p.user_id}"></div>
+        </div>`).join('');
+    }
+  }
+
+  async function envoyerRapport() {
+    const nom = document.getElementById('nomChantier').value.trim();
+    if (!nom) { showToast('⚠ Veuillez entrer le nom du chantier.', 'error'); return; }
+    if (selectedPlongeurs.size === 0) { showToast('⚠ Veuillez sélectionner au moins un plongeur.', 'error'); return; }
+
+    const btn = document.getElementById('btnEnvoyerRapport');
+    btn.disabled = true; btn.textContent = '⏳ Envoi en cours...';
+
+    let fichier_url = null;
+    let fichier_nom = null;
+
+    // Upload fichier si présent
+    if (selectedFile) {
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      progressBar.classList.add('visible');
+      let progress = 0;
+      const interval = setInterval(() => { progress = Math.min(progress + 15, 90); progressFill.style.width = progress + '%'; }, 100);
+
+      const ext = selectedFile.name.split('.').pop();
+      const fileName = `rapports/${currentUser.id}/${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await db.storage.from('certifications').upload(fileName, selectedFile, { cacheControl: '3600', upsert: false });
+
+      clearInterval(interval);
+      progressFill.style.width = '100%';
+      setTimeout(() => progressBar.classList.remove('visible'), 500);
+
+      if (uploadError) { showToast('❌ Erreur upload : ' + uploadError.message, 'error'); btn.disabled = false; btn.textContent = '✓ Envoyer le rapport aux plongeurs'; return; }
+
+      const { data: urlData } = db.storage.from('certifications').getPublicUrl(fileName);
+      fichier_url = urlData.publicUrl;
+      fichier_nom = selectedFile.name;
+    }
+
+    // Sauvegarder le rapport
+    const { data: rapport, error } = await db.from('rapports').insert([{
+      entreprise_id: currentUser.id,
+      nom_chantier: nom,
+      lieu: document.getElementById('lieuChantier').value.trim() || null,
+      date_plongee: document.getElementById('datePlongee').value || null,
+      type_travail: document.getElementById('typeTravail').value || null,
+      fichier_url, fichier_nom
+    }]).select().single();
+
+    if (error) { showToast('❌ ' + error.message, 'error'); btn.disabled = false; btn.textContent = '✓ Envoyer le rapport aux plongeurs'; return; }
+
+    // Assigner aux plongeurs
+    const assignments = [...selectedPlongeurs].map(pid => ({ rapport_id: rapport.id, plongeur_id: pid }));
+    await db.from('rapports_plongeurs').insert(assignments);
+
+    showToast('✓ Rapport envoyé à ' + selectedPlongeurs.size + ' plongeur(s) !', 'success');
+
+    // Reset
+    document.getElementById('nomChantier').value = '';
+    document.getElementById('lieuChantier').value = '';
+    document.getElementById('datePlongee').value = '';
+    document.getElementById('typeTravail').value = '';
+    removeFile();
+    selectedPlongeurs.clear();
+    document.querySelectorAll('.plongeur-option').forEach(el => { el.classList.remove('selected'); el.querySelector('.plongeur-check').textContent = ''; });
+
+    btn.disabled = false; btn.textContent = '✓ Envoyer le rapport aux plongeurs';
+  }
+
+  async function chargerRapports() {
+    // Entreprise : rapports envoyés
+    // Plongeur : rapports reçus
+    const { data: entreprise } = await db.from('entreprises').select('nom_entreprise').eq('user_id', currentUser.id).single();
+    const container = document.getElementById('rapportList');
+    const count = document.getElementById('rapportCount');
+
+    let rapports = [];
+    if (entreprise) {
+      const { data } = await db.from('rapports').select('*').eq('entreprise_id', currentUser.id).order('created_at', { ascending: false });
+      rapports = data || [];
+    } else {
+      // Plongeur — rapports assignés
+      const { data } = await db.from('rapports_plongeurs').select('rapport_id').eq('plongeur_id', currentUser.id);
+      if (data && data.length > 0) {
+        const ids = data.map(d => d.rapport_id);
+        const { data: raps } = await db.from('rapports').select('*').in('id', ids).order('created_at', { ascending: false });
+        rapports = raps || [];
+      }
+    }
+
+    count.textContent = rapports.length + ' rapport' + (rapports.length > 1 ? 's' : '');
+
+    if (rapports.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Aucun rapport pour l\'instant.</div></div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="rapport-list">' + rapports.map(r => {
+      const date = r.date_plongee ? new Date(r.date_plongee).toLocaleDateString('fr-CA', { day:'numeric', month:'long', year:'numeric' }) : '—';
+      return `
+        <div class="rapport-item">
+          <div class="rapport-icon">📄</div>
+          <div class="rapport-info">
+            <div class="rapport-name">${r.nom_chantier}</div>
+            <div class="rapport-meta">${date} · ${r.lieu || '—'} · ${r.type_travail || '—'}${r.fichier_nom ? ' · 📎 ' + r.fichier_nom : ''}</div>
+          </div>
+          <div class="rapport-actions">
+            ${r.fichier_url ? `<a class="btn-view" href="${r.fichier_url}" target="_blank">📄 Voir</a>` : ''}
+            ${entreprise ? `<button class="btn-delete" onclick="supprimerRapport(${r.id})">Supprimer</button>` : ''}
+          </div>
+        </div>`;
+    }).join('') + '</div>';
+  }
+
+  async function supprimerRapport(id) {
+    if (!confirm('Supprimer ce rapport ?')) return;
+    await db.from('rapports_plongeurs').delete().eq('rapport_id', id);
+    await db.from('rapports').delete().eq('id', id);
+    showToast('✓ Rapport supprimé.', 'success');
+    chargerRapports();
+  }
+
+  async function deconnexion() {
+    await db.auth.signOut();
+    window.location.href = 'zconnexion.html';
+  }
+
+  init();
+</script>
+</body>
+</html>
